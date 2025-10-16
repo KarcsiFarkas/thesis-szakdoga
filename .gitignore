@@ -1,0 +1,9 @@
+# macOS / IDE / Python basics
+.DS_Store
+*.swp
+__pycache__/
+*.py[cod]
+.env
+.venv/
+# Node/npm if present
+node_modules/
