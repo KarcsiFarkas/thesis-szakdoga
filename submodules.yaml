@@ -1,0 +1,10 @@
+modules:
+  - name: management-system
+    url: git@github.com:KarcsiFarkas/management-system.git
+    branch: website-fine-tuning
+  - name: ms-chezmoi
+    url: git@github.com:KarcsiFarkas/ms-chezmoi.git
+    branch: main
+  - name: ms-config
+    url: git@github.com:KarcsiFarkas/ms-config.git
+    branch: main
