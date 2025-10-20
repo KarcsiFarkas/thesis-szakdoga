@@ -1,0 +1,12 @@
+[Unit]
+Description=Signal Main Server that Backup Server is Ready
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/ssh admin@main-server 'touch /tmp/backup_server_ready'
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target
