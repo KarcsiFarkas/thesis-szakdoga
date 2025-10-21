@@ -104,6 +104,95 @@ def ff_to_remote(sub_repo: Repo, branch: str, remote: str = "origin") -> None:
         ) from e
 
 
+def check_branch_exists(repo: Repo, branch_name: str) -> bool:
+    """Check if a branch exists locally in the repository."""
+    try:
+        repo.git.rev_parse("--verify", branch_name)
+        return True
+    except GitCommandError:
+        return False
+
+
+def create_new_branch_all_repos(conf: SubmoduleConfig, root: Repo, branch_name: str) -> None:
+    """
+    Create a new branch in the superproject and all submodules.
+    First checks if the branch exists anywhere; if so, exits with error.
+    Only creates the branch if it doesn't exist in any repo.
+    """
+    print(f"🔍 Checking if branch '{branch_name}' exists in any repo...")
+    
+    # Check superproject
+    if check_branch_exists(root, branch_name):
+        raise SystemExit(f"❌ Branch '{branch_name}' already exists in superproject. Aborting.")
+    print(f"✅ Superproject: branch '{branch_name}' does not exist")
+    
+    # Check all submodules
+    for mod in conf.modules:
+        sub_path = Path(mod.name)
+        if not sub_path.exists():
+            raise SystemExit(f"❌ Submodule path not found: {mod.name}")
+        
+        sub_repo = Repo(sub_path)
+        if check_branch_exists(sub_repo, branch_name):
+            raise SystemExit(f"❌ Branch '{branch_name}' already exists in submodule '{mod.name}'. Aborting.")
+        print(f"✅ {mod.name}: branch '{branch_name}' does not exist")
+    
+    print(f"\n🌿 Creating branch '{branch_name}' in all repos...")
+    
+    # Create and checkout branch in superproject
+    root.git.checkout("-b", branch_name)
+    print(f"✅ Superproject: created and checked out branch '{branch_name}'")
+    
+    # Create and checkout branch in all submodules
+    for mod in conf.modules:
+        sub_path = Path(mod.name)
+        sub_repo = Repo(sub_path)
+        sub_repo.git.checkout("-b", branch_name)
+        print(f"✅ {mod.name}: created and checked out branch '{branch_name}'")
+    
+    print(f"\n🎉 Successfully created and checked out branch '{branch_name}' in all repos!")
+
+
+def commit_all_repos(conf: SubmoduleConfig, root: Repo, commit_message: str) -> None:
+    """
+    Commit uncommitted versioned (tracked) files in the superproject and all submodules.
+    Only commits files that are already tracked by git (modified or deleted), not untracked files.
+    """
+    print(f"📝 Committing changes in all repos with message: '{commit_message}'")
+    
+    committed_count = 0
+    
+    # Commit superproject
+    if root.is_dirty(untracked_files=False):
+        root.git.add("-u")  # Stage all modified/deleted tracked files
+        root.index.commit(commit_message)
+        print(f"✅ Superproject: committed changes")
+        committed_count += 1
+    else:
+        print(f"ℹ️  Superproject: no changes to commit")
+    
+    # Commit all submodules
+    for mod in conf.modules:
+        sub_path = Path(mod.name)
+        if not sub_path.exists():
+            print(f"⚠️  {mod.name}: submodule path not found, skipping")
+            continue
+        
+        sub_repo = Repo(sub_path)
+        if sub_repo.is_dirty(untracked_files=False):
+            sub_repo.git.add("-u")  # Stage all modified/deleted tracked files
+            sub_repo.index.commit(commit_message)
+            print(f"✅ {mod.name}: committed changes")
+            committed_count += 1
+        else:
+            print(f"ℹ️  {mod.name}: no changes to commit")
+    
+    if committed_count > 0:
+        print(f"\n🎉 Successfully committed changes in {committed_count} repo(s)!")
+    else:
+        print(f"\n✅ No uncommitted changes found in any repo.")
+
+
 # ---------------------------
 # Main bump logic
 # ---------------------------
@@ -151,6 +240,8 @@ def main() -> None:
     ap.add_argument("--tag", help="Optional tag name for the superproject.")
     ap.add_argument("--dry-run", action="store_true", help="Preview only; no changes.")
     ap.add_argument("--auto-stash", action="store_true", help="Stash parent before running and restore after.")
+    ap.add_argument("--new_branch", help="Create and checkout a new branch in all repos (superproject + submodules).")
+    ap.add_argument("--commit", help="Commit uncommitted versioned files in all repos with the provided message.")
     args = ap.parse_args()
 
     config_path = Path(args.config)
@@ -159,6 +250,17 @@ def main() -> None:
 
     conf = SubmoduleConfig(**yaml.safe_load(config_path.read_text()))
     root = ensure_superproject(Path.cwd())
+
+    # Handle new branch creation
+    if args.new_branch:
+        ensure_submodules_initialized()
+        create_new_branch_all_repos(conf, root, args.new_branch)
+        return
+
+    # Handle commit all repos
+    if args.commit:
+        commit_all_repos(conf, root, args.commit)
+        return
 
     if args.auto_stash:
         # Note: we stash only the superproject index/worktree; submodules must be clean
