@@ -2,12 +2,11 @@
 set -euo pipefail
 
 # Prepare Ubuntu Cloud Template for Proxmox
-# Run this script on your Proxmox host to create/update VM template 9000
-# Usage: bash prepare-ubuntu-template.sh
+# This version creates a MINIMAL template that Terraform can customize
 
 TEMPLATE_ID=9000
 TEMPLATE_NAME="ubuntu-2404-cloud-template"
-NODE_NAME="fkarcsi"  # Change to your node name
+NODE_NAME="fkarcsi"
 STORAGE="local-lvm"
 UBUNTU_VERSION="24.04"
 
@@ -43,79 +42,47 @@ qm create ${TEMPLATE_ID} \
     --memory 2048 \
     --cores 2 \
     --net0 virtio,bridge=vmbr0 \
-    --scsihw virtio-scsi-pci
+    --scsihw virtio-scsi-single
 
 # Import disk
 echo "💾 Importing disk..."
-qm importdisk ${TEMPLATE_ID} "${CLOUD_IMAGE}" "${STORAGE}"
+qm set ${TEMPLATE_ID} --scsi0 "${STORAGE}:0,import-from=/tmp/${CLOUD_IMAGE}"
 
-# Attach disk
-echo "🔗 Attaching disk..."
-qm set ${TEMPLATE_ID} \
-    --scsi0 "${STORAGE}:vm-${TEMPLATE_ID}-disk-0" \
-    --boot c \
-    --bootdisk scsi0
+# Set boot order
+echo "🥾 Configuring boot..."
+qm set ${TEMPLATE_ID} --boot order=scsi0
 
-# Add cloud-init drive
+# Add cloud-init drive (IDE instead of SCSI for better compatibility)
 echo "☁️  Adding cloud-init drive..."
 qm set ${TEMPLATE_ID} --ide2 "${STORAGE}:cloudinit"
 
-# Configure cloud-init defaults
-echo "⚙️  Configuring cloud-init..."
-qm set ${TEMPLATE_ID} \
-    --ciuser ubuntu \
-    --cipassword "$(openssl rand -base64 12)" \
-    --ipconfig0 ip=dhcp \
-    --nameserver "1.1.1.1 8.8.8.8" \
-    --searchdomain "local"
-
-# Add serial console for cloud-init output
-qm set ${TEMPLATE_ID} --serial0 socket --vga serial0
-
 # Enable QEMU guest agent
+echo "🤖 Enabling QEMU agent..."
 qm set ${TEMPLATE_ID} --agent enabled=1,fstrim_cloned_disks=1
 
-# Resize disk to 10GB (will be resized by Terraform later)
-qm resize ${TEMPLATE_ID} scsi0 10G
+# Add serial console for cloud-init output
+echo "📺 Adding serial console..."
+qm set ${TEMPLATE_ID} --serial0 socket --vga serial0
 
-# Important: Start VM once to pre-install qemu-guest-agent
-echo "🔄 Starting VM to install QEMU guest agent..."
-qm start ${TEMPLATE_ID}
+# ⚠️ IMPORTANT: Do NOT set cloud-init defaults here
+# Let Terraform configure them via user_data_file_id
+echo "⚙️  Skipping cloud-init defaults (Terraform will configure)"
 
-echo "⏳ Waiting 60 seconds for cloud-init to complete..."
-sleep 60
+# Resize disk to 10GB base (Terraform will resize further)
+echo "💿 Resizing disk..."
+qm disk resize ${TEMPLATE_ID} scsi0 10G
 
-# Install qemu-guest-agent
-echo "📦 Installing QEMU guest agent..."
-ssh -o StrictHostKeyChecking=no \
-    -o UserKnownHostsFile=/dev/null \
-    -o ConnectTimeout=30 \
-    ubuntu@$(qm guest cmd ${TEMPLATE_ID} network-get-interfaces | jq -r '.[1].["ip-addresses"][0]["ip-address"]' 2>/dev/null || echo "dhcp") \
-    'sudo apt-get update && sudo apt-get install -y qemu-guest-agent && sudo systemctl enable qemu-guest-agent && sudo systemctl start qemu-guest-agent' \
-    || echo "⚠️  Manual agent installation may be needed"
-
-# Clean up the VM
-echo "🧹 Cleaning up VM..."
-ssh -o StrictHostKeyChecking=no \
-    -o UserKnownHostsFile=/dev/null \
-    ubuntu@$(qm guest cmd ${TEMPLATE_ID} network-get-interfaces | jq -r '.[1].["ip-addresses"][0]["ip-address"]' 2>/dev/null || echo "dhcp") \
-    'sudo cloud-init clean && sudo apt-get clean && sudo sync' \
-    || true
-
-# Stop VM
-echo "🛑 Stopping VM..."
-qm stop ${TEMPLATE_ID}
-sleep 5
-
-# Convert to template
+# Convert to template immediately (don't start it)
 echo "📋 Converting to template..."
 qm template ${TEMPLATE_ID}
 
 echo ""
 echo "✅ Template ${TEMPLATE_ID} (${TEMPLATE_NAME}) created successfully!"
 echo ""
-echo "Template details:"
+echo "⚠️  IMPORTANT: This is a MINIMAL template."
+echo "   All configuration (users, network, packages) will be done by Terraform."
+echo ""
+echo "Template configuration:"
 qm config ${TEMPLATE_ID}
 echo ""
-echo "🎉 You can now use this template with Terraform!"
-echo "   Clone VM ID: ${TEMPLATE_ID}"
+echo "🎉 Ready to use with Terraform!"
