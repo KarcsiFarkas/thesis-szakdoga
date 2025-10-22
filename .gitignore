@@ -7,3 +7,11 @@ __pycache__/
 .venv/
 # Node/npm if present
 node_modules/
+# Add to your .gitignore
+proxmox_api.txt
+*.log
+build/
+*.tfstate
+*.tfstate.backup
+.terraform/
+terraform-debug.log

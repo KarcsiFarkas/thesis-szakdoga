@@ -180,7 +180,7 @@ def lint_configurations(tenant_name: str) -> str:
     return deployment_target
 
 
-def provision_proxmox_vm(vm_name: str):
+def provision_proxmox_vm(vm_name: str, username: str):
     """
     Calls the provision.py script to create and configure the Proxmox VM.
     Assumes Proxmox credentials are set as environment variables (PM_API_TOKEN_ID, etc.)
@@ -194,6 +194,8 @@ def provision_proxmox_vm(vm_name: str):
         "provision.py",
         "--hosts",
         vm_name,
+        "--username",
+        username,
     ]
     if DEBUG:
         command.append("--debug")
@@ -384,12 +386,23 @@ def main(tenant_name: str):
 
     # --- Step 1: Validate Configurations ---
     print("\n--- Step 1: Validating Configurations ---")
-    vm_to_provision = lint_configurations(tenant_name)
+    vm_to_provision = lint_configurations(tenant_name)  # This finds the VM name
+
+    # Load the username from the general config
+    print(f"🔧 Loading tenant config for {tenant_name}...")
+    tenant_dir = MS_CONFIG_DIR / "tenants" / tenant_name
+    general_conf_path = tenant_dir / "general.conf.yml"
+    with open(general_conf_path, 'r') as f:
+        general_config = yaml.safe_load(f) or {}
+
+    vm_username = general_config.get("universal_username")
+    if not vm_username:
+        print(f"❌ Error: 'universal_username' not set in {general_conf_path}")
+        sys.exit(1)
 
     # --- Step 2: Provision Proxmox VM ---
     print(f"\n--- Step 2: Provisioning Proxmox VM ({vm_to_provision}) ---")
-    provision_proxmox_vm(vm_to_provision)
-
+    provision_proxmox_vm(vm_to_provision, vm_username)
     # --- Step 3: Docker Deployment ---
     print("\n--- Step 3: Docker Service Deployment ---")
     # --- Step 3a: Load Service Definitions ---
