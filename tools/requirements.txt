@@ -1,6 +1,7 @@
-# Runtime deps for tools/bump_submodules.py
-# Python 3.12+
-
 pydantic>=2,<3
 GitPython>=3.1,<4
 PyYAML>=6,<7
+proxmoxer
+requests
+gitpython
+ansible

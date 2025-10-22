@@ -17,40 +17,115 @@ OS_INSTALL_DIR = MGMT_SYSTEM_DIR / "OS_install"
 DOCKER_COMPOSE_DIR = MGMT_SYSTEM_DIR / "docker-compose-solution"
 SERVICES_JSON_PATH = MGMT_SYSTEM_DIR / "website" / "services.json"
 
+# Global debug flag (set by --debug CLI option)
+DEBUG = False
+
 
 # --- Helper Functions ---
 
 def run_command(command: list[str], cwd: Path, env: dict = None, check: bool = True) -> subprocess.CompletedProcess:
-    """Runs a shell command and streams output."""
+    """Runs a shell command.
+    - In normal mode: runs and prints output after completion.
+    - In debug mode: streams output line-by-line in real time.
+    """
     print(f"\n🚀 Running command: {' '.join(command)} in {cwd}")
     process_env = os.environ.copy()
     if env:
         process_env.update(env)
 
     try:
-        process = subprocess.run(
-            command,
-            cwd=cwd,
-            env=process_env,
-            check=check,  # Raise exception on non-zero exit code if True
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT  # Redirect stderr to stdout
-        )
-        if process.stdout:
-            print(process.stdout)
-        if process.returncode != 0:
-            print(f"⚠️ Command finished with error (code {process.returncode})")
+        if DEBUG:
+            # Real-time streaming
+            proc = subprocess.Popen(
+                command,
+                cwd=cwd,
+                env=process_env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                print(line, end="")
+            rc = proc.wait()
+            if rc != 0:
+                print(f"⚠️ Command finished with error (code {rc})")
+                if check:
+                    raise subprocess.CalledProcessError(rc, command)
+            else:
+                print("✅ Command finished successfully.")
+            # Build a CompletedProcess-like object for compatibility
+            return subprocess.CompletedProcess(command, rc, stdout=None)
         else:
-            print(f"✅ Command finished successfully.")
-        return process
+            process = subprocess.run(
+                command,
+                cwd=cwd,
+                env=process_env,
+                check=check,  # Raise exception on non-zero exit code if True
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT  # Redirect stderr to stdout
+            )
+            if process.stdout:
+                print(process.stdout)
+            if process.returncode != 0:
+                print(f"⚠️ Command finished with error (code {process.returncode})")
+            else:
+                print(f"✅ Command finished successfully.")
+            return process
     except subprocess.CalledProcessError as e:
         print(f"❌ Command failed: {' '.join(command)}")
-        print(e.stdout)
+        if hasattr(e, 'stdout') and e.stdout:
+            print(e.stdout)
         raise  # Re-raise the exception to stop execution if check=True
     except FileNotFoundError:
         print(f"❌ Error: Command not found: {command[0]}. Is it installed and in PATH?")
         sys.exit(1)
+
+
+def load_proxmox_api_token() -> str:
+    """Loads the Proxmox API token from environment or proxmox_api.txt.
+
+    Priority:
+    1) Environment variable PROXMOX_VE_API_TOKEN
+    2) File proxmox_api.txt in the repository root. Supports formats:
+       - raw token on a single line
+       - PROXMOX_VE_API_TOKEN=... (with or without quotes)
+       - export PROXMOX_VE_API_TOKEN=... (with or without quotes)
+    """
+    token = os.environ.get("PROXMOX_VE_API_TOKEN")
+    if token:
+        return token.strip().strip('"').strip("'").strip()
+
+    token_file = ROOT_DIR / "proxmox_api.txt"
+    if token_file.exists():
+        try:
+            with open(token_file, 'r', encoding='utf-8') as f:
+                for raw in f:
+                    line = raw.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    # Handle export/assignment formats
+                    if "PROXMOX_VE_API_TOKEN" in line and "=" in line:
+                        # remove optional 'export ' prefix
+                        if line.lower().startswith("export "):
+                            line = line[7:].strip()
+                        # split key/value
+                        key, val = line.split("=", 1)
+                        if key.strip() == "PROXMOX_VE_API_TOKEN":
+                            val = val.strip().strip('"').strip("'")
+                            if val:
+                                return val
+                    # Fallback: treat the line itself as the token
+                    return line.strip().strip('"').strip("'")
+        except IOError as e:
+            print(f"❌ Error reading token file {token_file}: {e}")
+            sys.exit(1)
+
+    print("❌ Proxmox API token not found. Set PROXMOX_VE_API_TOKEN env var or create proxmox_api.txt at the repo root.")
+    print("   Example (do NOT commit secrets): PROXMOX_VE_API_TOKEN=\"user@realm!tokenid=...\"")
+    sys.exit(1)
 
 
 def lint_configurations(tenant_name: str) -> str:
@@ -89,6 +164,12 @@ def lint_configurations(tenant_name: str) -> str:
     if not deployment_target:
         errors.append(f"Missing 'deployment_target' in {general_conf_path}. Cannot determine which VM to provision.")
 
+    # Ensure Proxmox token is available either via env or token file
+    token_env = os.environ.get("PROXMOX_VE_API_TOKEN")
+    token_file = ROOT_DIR / "proxmox_api.txt"
+    if not token_env and not token_file.exists():
+        errors.append("Missing Proxmox API token. Set PROXMOX_VE_API_TOKEN or create proxmox_api.txt at repo root.")
+
     if errors:
         print("❌ Validation failed with the following errors:")
         for error in errors:
@@ -107,15 +188,22 @@ def provision_proxmox_vm(vm_name: str):
     print(f"🔧 Starting Proxmox VM provisioning for host: {vm_name}")
 
     # We specify the host and run all targets (infra, os, post)
+    py = sys.executable
     command = [
-        "python3",
+        py,
         "provision.py",
         "--hosts",
         vm_name,
     ]
+    if DEBUG:
+        command.append("--debug")
 
     try:
-        run_command(command, cwd=OS_INSTALL_DIR)
+        token = load_proxmox_api_token()
+        env_map = {"PROXMOX_VE_API_TOKEN": token}
+        if DEBUG:
+            env_map["ORCH_DEBUG"] = "1"
+        run_command(command, cwd=OS_INSTALL_DIR, env=env_map)
         print(f"✅ Proxmox VM '{vm_name}' provisioned successfully.")
     except subprocess.CalledProcessError:
         print(f"❌ Failed to provision Proxmox VM '{vm_name}'. Check the output above for errors.")
@@ -340,6 +428,12 @@ def main(tenant_name: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Full-stack orchestrator for Proxmox and Docker services.")
     parser.add_argument("tenant", help="The name of the tenant configuration to use (e.g., 'test').")
+    parser.add_argument("--debug", action="store_true", help="Enable verbose debug output and real-time subprocess logs.")
     args = parser.parse_args()
+
+    # Set global DEBUG flag
+    DEBUG = args.debug
+    if DEBUG:
+        print("🐞 Debug mode enabled: streaming subprocess output and verbose logs.")
 
     main(args.tenant)
