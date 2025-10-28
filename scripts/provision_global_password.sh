@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Assumes LLDAP is running in a container named 'lldap'.
-# Reads variables from the tenant's general.conf file.
+# Reads variables.nix from the tenant's general.conf file.
 
 if [[ -z "${ADMIN_USER:-}" || -z "${GLOBAL_PASSWORD:-}" ]]; then
     echo "Error: ADMIN_USER and GLOBAL_PASSWORD must be set in the environment." >&2

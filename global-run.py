@@ -206,7 +206,7 @@ def lint_configurations(tenant_name: str) -> str:
 def provision_proxmox_vm(vm_name: str, username: str):
     """
     Calls the provision.py script to create and configure the Proxmox VM.
-    Assumes Proxmox credentials are set as environment variables (PM_API_TOKEN_ID, etc.)
+    Assumes Proxmox credentials are set as environment variables.nix (PM_API_TOKEN_ID, etc.)
     """
     print(f"🔧 Starting Proxmox VM provisioning for host: {vm_name}")
 
@@ -454,7 +454,7 @@ def generate_dotenv(general_config: dict, selection_config: dict, services_def: 
                     if value is not None and field_name:  # Only add if a value exists
                         env_vars[field_name] = str(value)  # Ensure it's a string
 
-    # 3. Add any MUST-HAVE service variables if not already present
+    # 3. Add any MUST-HAVE service variables.nix if not already present
     # Example: Ensure Traefik email is set
     if "TRAEFIK_ACME_EMAIL" not in env_vars:
         env_vars["TRAEFIK_ACME_EMAIL"] = f"admin@{env_vars['DOMAIN']}"

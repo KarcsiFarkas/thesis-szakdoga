@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # IMPORTANT: BW_CLIENTID, BW_CLIENTSECRET, and BW_PASSWORD must be exported
-# as environment variables before running this script.
+# as environment variables.nix before running this script.
 
 if [[ -z "${BW_CLIENTID:-}" || -z "${BW_CLIENTSECRET:-}" || -z "${BW_PASSWORD:-}" ]]; then
     echo "Error: BW_CLIENTID, BW_CLIENTSECRET, and BW_PASSWORD must be set." >&2
