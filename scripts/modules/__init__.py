@@ -19,8 +19,10 @@ from . import remote_executor
 from . import docker_deployer
 from . import nix_deployer
 from . import traefik_config
+from . import chezmoi_deployer
 
 __all__ = [
+    "chezmoi_deployer",
     "constants",
     "utils",
     "config_manager",

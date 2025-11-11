@@ -281,3 +281,172 @@ def nix_escape_string(s: str) -> str:
     """
     s = s or ""
     return s.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def ssh_command(
+    host: str,
+    user: str,
+    command: str,
+    check: bool = True,
+    stream_output: bool = False
+) -> subprocess.CompletedProcess:
+    """
+    Execute a command on a remote host via SSH.
+
+    Args:
+        host: Target hostname or IP address
+        user: SSH username
+        command: Command to execute on remote host
+        check: If True, raise exception on non-zero exit code
+        stream_output: If True, stream output in real-time
+
+    Returns:
+        CompletedProcess instance with command results
+
+    Raises:
+        subprocess.CalledProcessError: If check=True and command fails
+    """
+    ssh_cmd = [
+        "ssh",
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null",
+        "-o", f"ConnectTimeout={constants.SSH_CONNECT_TIMEOUT}",
+        f"{user}@{host}",
+        command
+    ]
+
+    if stream_output or DebugContext.is_debug():
+        print(f"🔧 Executing on {user}@{host}: {command}")
+        proc = subprocess.Popen(
+            ssh_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        assert proc.stdout is not None
+        output_lines = []
+        for line in proc.stdout:
+            print(line, end="")
+            output_lines.append(line)
+        rc = proc.wait()
+
+        result = subprocess.CompletedProcess(
+            ssh_cmd,
+            rc,
+            stdout=''.join(output_lines),
+            stderr=None
+        )
+
+        if rc != 0 and check:
+            raise subprocess.CalledProcessError(rc, ssh_cmd, result.stdout)
+
+        return result
+    else:
+        result = subprocess.run(
+            ssh_cmd,
+            capture_output=True,
+            text=True,
+            check=check
+        )
+        return result
+
+
+def scp_upload(
+    host: str,
+    user: str,
+    source_path: str,
+    dest_path: str,
+    recursive: bool = False
+) -> None:
+    """
+    Upload a file or directory to a remote host via SCP.
+
+    Args:
+        host: Target hostname or IP address
+        user: SSH username
+        source_path: Local path to upload
+        dest_path: Remote destination path
+        recursive: If True, upload directories recursively
+
+    Raises:
+        subprocess.CalledProcessError: If SCP fails
+    """
+    scp_cmd = [
+        "scp",
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null",
+    ]
+
+    if recursive:
+        scp_cmd.append("-r")
+
+    scp_cmd.extend([
+        source_path,
+        f"{user}@{host}:{dest_path}"
+    ])
+
+    print(f"📤 Uploading {source_path} to {user}@{host}:{dest_path}")
+
+    result = subprocess.run(
+        scp_cmd,
+        capture_output=True,
+        text=True,
+        check=True
+    )
+
+    if result.returncode == 0:
+        print(f"✅ Upload completed successfully")
+    else:
+        print(f"❌ Upload failed: {result.stderr}")
+        raise subprocess.CalledProcessError(result.returncode, scp_cmd, result.stdout, result.stderr)
+
+
+def scp_download(
+    host: str,
+    user: str,
+    source_path: str,
+    dest_path: str,
+    recursive: bool = False
+) -> None:
+    """
+    Download a file or directory from a remote host via SCP.
+
+    Args:
+        host: Target hostname or IP address
+        user: SSH username
+        source_path: Remote path to download
+        dest_path: Local destination path
+        recursive: If True, download directories recursively
+
+    Raises:
+        subprocess.CalledProcessError: If SCP fails
+    """
+    scp_cmd = [
+        "scp",
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null",
+    ]
+
+    if recursive:
+        scp_cmd.append("-r")
+
+    scp_cmd.extend([
+        f"{user}@{host}:{source_path}",
+        dest_path
+    ])
+
+    print(f"📥 Downloading {user}@{host}:{source_path} to {dest_path}")
+
+    result = subprocess.run(
+        scp_cmd,
+        capture_output=True,
+        text=True,
+        check=True
+    )
+
+    if result.returncode == 0:
+        print(f"✅ Download completed successfully")
+    else:
+        print(f"❌ Download failed: {result.stderr}")
+        raise subprocess.CalledProcessError(result.returncode, scp_cmd, result.stdout, result.stderr)

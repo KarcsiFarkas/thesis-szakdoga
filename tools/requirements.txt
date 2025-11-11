@@ -1,31 +1,24 @@
-pydantic>=2,<3
+# Core CLI / provisioning tooling
+pydantic==2.5.3
+PyYAML==6.0.1
+requests>=2.31,<3
 GitPython>=3.1,<4
-PyYAML>=6,<7
-proxmoxer
-requests
-gitpython
-ansible
+ansible>=9,<10
+proxmoxer>=2.0,<3
+
+# Web management portal (management-system/website)
+Flask>=3.0,<4
+Flask-Login>=0.6,<1
+Flask-Bcrypt>=1.0,<2
+Flask-SQLAlchemy>=3.1,<4
 
 # TUI Application Dependencies
 # Production-ready versions pinned for stability
-
-# Core TUI Framework
 textual==0.47.1
 textual-dev==1.4.0
-
-# YAML parsing (same as provision.py)
-pyyaml==6.0.1
-
-# Rich text and formatting
 rich==13.7.0
-
-# Configuration management
 python-dotenv==1.0.0
-
-# Date/time utilities
 python-dateutil==2.8.2
-
-# Process management
 psutil==5.9.6
 
 # Development dependencies (optional)
