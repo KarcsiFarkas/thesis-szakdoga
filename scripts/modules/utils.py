@@ -18,6 +18,105 @@ from typing import Optional
 
 from . import constants
 
+# ---------- Colored Logging Helpers ----------
+
+RESET = "\033[0m"
+BLUE = "\033[38;5;39m"
+YELLOW = "\033[33m"
+RED = "\033[31m"
+GREEN = "\033[32m"
+MAGENTA = "\033[35m"
+BOLD = "\033[1m"
+DIM = "\033[2m"
+
+ENABLE_COLOR = sys.stdout.isatty()
+
+
+def _color(text: str, code: str) -> str:
+    if not ENABLE_COLOR:
+        return text
+    return f"{code}{text}{RESET}"
+
+
+def log_info(message: str) -> None:
+    print(f"{_color('[INFO]', BLUE)} {message}")
+
+
+def log_warn(message: str) -> None:
+    print(f"{_color('[WARN]', YELLOW)} {message}")
+
+
+def log_error(message: str) -> None:
+    print(f"{_color('[ERROR]', RED)} {message}")
+
+
+def log_success(message: str) -> None:
+    print(f"{_color('[OK]', GREEN)} {message}")
+
+
+def log_cmd(message: str) -> None:
+    print(f"{_color('[CMD]', MAGENTA)} {message}")
+
+
+_DEFAULT_SSH_IDENTITY: Optional[Path] = None
+
+
+def set_default_ssh_identity(identity_path: Optional[Path]) -> None:
+    """
+    Cache the default SSH identity for outbound SSH/SCP commands.
+    """
+    global _DEFAULT_SSH_IDENTITY
+    if identity_path is not None:
+        _DEFAULT_SSH_IDENTITY = Path(identity_path).expanduser().resolve()
+    else:
+        _DEFAULT_SSH_IDENTITY = None
+
+
+def get_default_ssh_identity() -> Optional[Path]:
+    """
+    Return the configured SSH identity path if present.
+    """
+    return _DEFAULT_SSH_IDENTITY
+
+
+def ssh_identity_args() -> list[str]:
+    """
+    Internal helper returning ['-i', path] when a default identity is set.
+    """
+    identity = get_default_ssh_identity()
+    return ["-i", str(identity)] if identity else []
+
+
+def ensure_tenant_ssh_identity(tenant_name: str) -> Path:
+    """
+    Ensure the ms-config tenant directory contains an ed25519 keypair.
+
+    Returns:
+        Path to the private key file.
+    """
+    tenant_dir = constants.MS_CONFIG_DIR / "tenants" / tenant_name
+    tenant_dir.mkdir(parents=True, exist_ok=True)
+    priv_key = tenant_dir / "id_ed25519"
+    pub_key = tenant_dir / "id_ed25519.pub"
+
+    if priv_key.exists() and pub_key.exists():
+        log_info(f"Using existing tenant SSH key at {priv_key}")
+        return priv_key.resolve()
+
+    log_warn(f"No SSH keypair found for tenant '{tenant_name}', generating a new one.")
+    cmd = [
+        "ssh-keygen",
+        "-t",
+        "ed25519",
+        "-N",
+        "",
+        "-f",
+        str(priv_key),
+        "-C",
+        f"{tenant_name}@thesis-orchestrator",
+    ]
+    run_command(cmd, cwd=tenant_dir, stream_output=False, label="ssh-keygen")
+    return priv_key.resolve()
 
 class DebugContext:
     """Context manager for global debug state."""
@@ -38,81 +137,74 @@ def run_command(
     command: list[str],
     cwd: Path,
     env: Optional[dict] = None,
-    check: bool = True
+    check: bool = True,
+    *,
+    stream_output: bool = True,
+    label: Optional[str] = None,
 ) -> subprocess.CompletedProcess:
     """
-    Run a shell command with optional debug output streaming.
-
-    In normal mode: runs and prints output after completion.
-    In debug mode: streams output line-by-line in real time.
+    Run a shell command with colorful logging and real-time streaming.
 
     Args:
         command: List of command arguments to execute
         cwd: Working directory for command execution
         env: Optional environment variables to add/override
         check: If True, raise exception on non-zero exit code
+        stream_output: If False, suppress live output (still captured)
+        label: Optional label for success/error messages
 
     Returns:
-        CompletedProcess instance with command results
-
-    Raises:
-        subprocess.CalledProcessError: If check=True and command fails
-        SystemExit: If command executable is not found
+        CompletedProcess containing stdout (combined) and return code.
     """
-    print(f"\n🚀 Running command: {' '.join(command)} in {cwd}")
+    if not command:
+        raise ValueError("run_command requires a non-empty command list")
+
+    cmd_str = " ".join(command)
+    label = label or Path(command[0]).name
+    log_cmd(f"{cmd_str} (cwd={cwd})")
+
     process_env = os.environ.copy()
     if env:
         process_env.update(env)
 
     try:
-        if DebugContext.is_debug():
-            # Real-time streaming
-            proc = subprocess.Popen(
-                command,
-                cwd=cwd,
-                env=process_env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-            )
-            assert proc.stdout is not None
-            for line in proc.stdout:
-                print(line, end="")
-            rc = proc.wait()
-            if rc != 0:
-                print(f"⚠️ Command finished with error (code {rc})")
-                if check:
-                    raise subprocess.CalledProcessError(rc, command)
-            else:
-                print("✅ Command finished successfully.")
-            # Build a CompletedProcess-like object for compatibility
-            return subprocess.CompletedProcess(command, rc, stdout=None)
-        else:
-            process = subprocess.run(
-                command,
-                cwd=cwd,
-                env=process_env,
-                check=check,  # Raise exception on non-zero exit code if True
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT  # Redirect stderr to stdout
-            )
-            if process.stdout:
-                print(process.stdout)
-            if process.returncode != 0:
-                print(f"⚠️ Command finished with error (code {process.returncode})")
-            else:
-                print(f"✅ Command finished successfully.")
-            return process
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Command failed: {' '.join(command)}")
-        if hasattr(e, 'stdout') and e.stdout:
-            print(e.stdout)
-        raise  # Re-raise the exception to stop execution if check=True
+        proc = subprocess.Popen(
+            command,
+            cwd=cwd,
+            env=process_env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
     except FileNotFoundError:
-        print(f"❌ Error: Command not found: {command[0]}. Is it installed and in PATH?")
+        log_error(f"Command not found: {command[0]}")
         sys.exit(1)
+
+    assert proc.stdout is not None
+    collected: list[str] = []
+    should_stream = stream_output or DebugContext.is_debug()
+
+    try:
+        for line in proc.stdout:
+            collected.append(line)
+            if should_stream:
+                print(line, end="")
+    finally:
+        proc.stdout.close()
+
+    rc = proc.wait()
+    output = "".join(collected)
+    result = subprocess.CompletedProcess(command, rc, stdout=output)
+
+    if rc == 0:
+        log_success(f"{label} exited with code 0")
+        return result
+
+    log_warn(f"{label} exited with code {rc}")
+    if check:
+        raise subprocess.CalledProcessError(rc, command, output=output)
+    return result
 
 
 def load_proxmox_api_token() -> str:
@@ -190,15 +282,17 @@ def wait_for_ssh(
     start = time.time()
     while time.time() - start < timeout_sec:
         try:
-            run_command([
+            cmd = [
                 "ssh",
+                *ssh_identity_args(),
                 "-o", "BatchMode=yes",
                 "-o", "StrictHostKeyChecking=no",
                 "-o", "UserKnownHostsFile=/dev/null",
                 "-o", f"ConnectTimeout={constants.SSH_CONNECT_TIMEOUT}",
                 f"{user}@{host}",
                 "true",
-            ], cwd=constants.ROOT_DIR, check=True)
+            ]
+            run_command(cmd, cwd=constants.ROOT_DIR, check=True)
             print("✅ SSH is available.")
             return True
         except Exception:
@@ -308,6 +402,7 @@ def ssh_command(
     """
     ssh_cmd = [
         "ssh",
+        *ssh_identity_args(),
         "-o", "StrictHostKeyChecking=no",
         "-o", "UserKnownHostsFile=/dev/null",
         "-o", f"ConnectTimeout={constants.SSH_CONNECT_TIMEOUT}",
@@ -374,6 +469,7 @@ def scp_upload(
     """
     scp_cmd = [
         "scp",
+        *ssh_identity_args(),
         "-o", "StrictHostKeyChecking=no",
         "-o", "UserKnownHostsFile=/dev/null",
     ]
@@ -424,6 +520,7 @@ def scp_download(
     """
     scp_cmd = [
         "scp",
+        *ssh_identity_args(),
         "-o", "StrictHostKeyChecking=no",
         "-o", "UserKnownHostsFile=/dev/null",
     ]

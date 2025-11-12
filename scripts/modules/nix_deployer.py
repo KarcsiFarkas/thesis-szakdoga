@@ -248,24 +248,30 @@ def install_nixos_flake_via_ssh(
         sys.exit(1)
 
     # Ensure remote target directory is clean
-    utils.run_command([
-        "ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
-        remote, "rm -rf ~/nix-solution && mkdir -p ~"
-    ], cwd=constants.ROOT_DIR, check=False)
+    utils.ssh_command(
+        host,
+        ssh_user,
+        "rm -rf ~/nix-solution && mkdir -p ~",
+        check=False,
+    )
 
     # Copy the nix flake directory to home
-    utils.run_command([
-        "scp", "-r",
+    utils.scp_upload(
+        host,
+        ssh_user,
         str(src_dir),
-        f"{remote}:~/"
-    ], cwd=constants.ROOT_DIR)
+        "~/",
+        recursive=True,
+    )
 
     # If the directory name is not 'nix-solution', rename it remotely so install.sh path is consistent
     if src_dir.name != "nix-solution":
-        utils.run_command([
-            "ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
-            remote, f"rm -rf ~/nix-solution && mv ~/{src_dir.name} ~/nix-solution"
-        ], cwd=constants.ROOT_DIR, check=False)
+        utils.ssh_command(
+            host,
+            ssh_user,
+            f"rm -rf ~/nix-solution && mv ~/{src_dir.name} ~/nix-solution",
+            check=False,
+        )
 
     # Execute the install script with default choices (send an empty line)
     remote_cmd = (

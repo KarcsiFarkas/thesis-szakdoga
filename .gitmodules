@@ -1,12 +1,12 @@
 [submodule "management-system"]
 	path = management-system
-	url = https://github.com/KarcsiFarkas/management-system.git
+	url = git@github.com:KarcsiFarkas/management-system.git
 	branch = website-fine-tuning
 [submodule "ms-chezmoi"]
 	path = ms-chezmoi
-	url = https://github.com/KarcsiFarkas/ms-chezmoi.git
+	url = git@github.com:KarcsiFarkas/ms-chezmoi.git
 	branch = main
 [submodule "ms-config"]
 	path = ms-config
-	url = https://github.com/KarcsiFarkas/ms-config.git
+	url = git@github.com:KarcsiFarkas/ms-config.git
 	branch = main

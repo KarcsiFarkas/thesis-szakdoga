@@ -27,7 +27,7 @@ def provision_proxmox_vm(vm_name: str, username: str) -> None:
     Raises:
         SystemExit: If provisioning fails
     """
-    print(f"🔧 Starting Proxmox VM provisioning for host: {vm_name}")
+    utils.log_info(f"🔧 Starting Proxmox VM provisioning for host: {vm_name}")
 
     # We specify the host and run all targets (infra, os, post)
     py = sys.executable
@@ -48,7 +48,7 @@ def provision_proxmox_vm(vm_name: str, username: str) -> None:
         if utils.DebugContext.is_debug():
             env_map[constants.ENV_ORCH_DEBUG] = "1"
         utils.run_command(command, cwd=constants.OS_INSTALL_DIR, env=env_map)
-        print(f"✅ Proxmox VM '{vm_name}' provisioned successfully.")
+        utils.log_success(f"Proxmox VM '{vm_name}' provisioned successfully.")
     except subprocess.CalledProcessError:
-        print(f"❌ Failed to provision Proxmox VM '{vm_name}'. Check the output above for errors.")
+        utils.log_error(f"Failed to provision Proxmox VM '{vm_name}'. Check the output above for errors.")
         sys.exit(1)

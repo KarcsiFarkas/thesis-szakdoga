@@ -5,6 +5,8 @@ This module provides intelligent remote execution that prefers Mosh when
 available on both ends, falling back to SSH when necessary.
 """
 
+import os
+import shlex
 import shutil
 import subprocess
 from typing import Optional
@@ -34,13 +36,21 @@ def remote_has_mosh_server(remote: str) -> bool:
         True if mosh-server is available on remote, False otherwise
     """
     try:
-        proc = utils.run_command([
+        ssh_cmd = [
             "ssh",
+            *utils.ssh_identity_args(),
             "-o", "StrictHostKeyChecking=no",
             "-o", "UserKnownHostsFile=/dev/null",
+            "-o", f"ConnectTimeout={constants.SSH_CONNECT_TIMEOUT}",
             remote,
             "command -v mosh-server >/dev/null 2>&1 && echo yes || echo no",
-        ], cwd=constants.ROOT_DIR, check=False)
+        ]
+        proc = utils.run_command(
+            ssh_cmd,
+            cwd=constants.ROOT_DIR,
+            check=False,
+            stream_output=False,
+        )
         out = (proc.stdout or "").strip() if hasattr(proc, "stdout") else ""
         return "yes" in out.lower()
     except Exception:
@@ -64,19 +74,31 @@ def run_remote_prefer_mosh(remote: str, remote_cmd: str) -> subprocess.Completed
     Raises:
         subprocess.CalledProcessError: If command fails and check=True
     """
+    identity_args = utils.ssh_identity_args()
+    ssh_base = [
+        "ssh",
+        *identity_args,
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null",
+        "-o", f"ConnectTimeout={constants.SSH_CONNECT_TIMEOUT}",
+    ]
+
     if has_local_mosh() and remote_has_mosh_server(remote):
         print(f"🌐 Using mosh for remote command on {remote}")
-        # Run the command within a login shell for consistent PATH/env
+        ssh_string = shlex.join(ssh_base)
+        env = os.environ.copy()
+        env["MOSH_SSH"] = ssh_string
         return utils.run_command(
             ["mosh", remote, "--", "bash", "-lc", remote_cmd],
             cwd=constants.ROOT_DIR,
-            check=True
+            check=True,
+            env=env,
         )
-    else:
-        print(f"🔌 Falling back to SSH for remote command on {remote}")
-        return utils.run_command([
-            "ssh", "-t",
-            "-o", "StrictHostKeyChecking=no",
-            "-o", "UserKnownHostsFile=/dev/null",
-            remote, remote_cmd
-        ], cwd=constants.ROOT_DIR, check=True)
+
+    print(f"🔌 Falling back to SSH for remote command on {remote}")
+    ssh_cmd = ssh_base + ["-t", remote, remote_cmd]
+    return utils.run_command(
+        ssh_cmd,
+        cwd=constants.ROOT_DIR,
+        check=True,
+    )

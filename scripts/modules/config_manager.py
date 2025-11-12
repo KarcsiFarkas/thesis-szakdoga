@@ -165,8 +165,9 @@ def generate_dotenv(
     Raises:
         SystemExit: If .env.old file cannot be written
     """
-    print("🔧 Generating .env.old file...")
-    dotenv_path = constants.DOCKER_COMPOSE_DIR / ".env.old"
+    print("🔧 Generating Docker Compose .env files...")
+    dotenv_old_path = constants.DOCKER_COMPOSE_DIR / ".env.old"
+    dotenv_current_path = constants.DOCKER_COMPOSE_DIR / ".env"
     env_vars = {}
 
     # 1. Add general settings
@@ -197,21 +198,25 @@ def generate_dotenv(
     if "TRAEFIK_ACME_EMAIL" not in env_vars:
         env_vars["TRAEFIK_ACME_EMAIL"] = f"admin@{env_vars['DOMAIN']}"
 
-    # 4. Write to .env.old file
+    # 4. Serialize environment entries once
+    lines: list[str] = []
+    for key, value in env_vars.items():
+        if any(c in value for c in [' ', '$', '#']):
+            value_escaped = value.replace('"', '\\"')
+            lines.append(f'{key}="{value_escaped}"')
+        else:
+            lines.append(f"{key}={value}")
+    content = "\n".join(lines) + "\n"
+
+    # 5. Write both .env.old (for auditing) and .env (for docker-compose)
     try:
-        with open(dotenv_path, 'w') as f:
-            for key, value in env_vars.items():
-                # Basic quoting for values with spaces, $, or #
-                if any(c in value for c in [' ', '$', '#']):
-                    # Escape potential internal quotes and wrap
-                    value_escaped = value.replace('"', '\\"')
-                    f.write(f'{key}="{value_escaped}"\n')
-                else:
-                    f.write(f'{key}={value}\n')
-        print(f"✅ .env.old file generated at {dotenv_path}")
-        return dotenv_path
+        for target in (dotenv_old_path, dotenv_current_path):
+            with open(target, 'w') as f:
+                f.write(content)
+        print(f"✅ .env files generated: {dotenv_current_path} (active), {dotenv_old_path} (backup)")
+        return dotenv_current_path
     except IOError as e:
-        print(f"❌ Error writing .env.old file: {e}")
+        print(f"❌ Error writing docker env files: {e}")
         sys.exit(1)
 
 
