@@ -142,7 +142,8 @@ def load_tenant_config(tenant_name: str) -> Tuple[Dict, Dict]
 def generate_dotenv(
     general_config: Dict,
     selection_config: Dict,
-    services_def: Dict
+    services_def: Dict,
+    target_dir: Optional[Path] = None
 ) -> Path
 """Generate .env.old file for Docker Compose"""
 
@@ -232,6 +233,29 @@ def deploy_services(profiles: List[str], wait_time: int = 0) -> None
 
 def deploy_core_services(wait_time: int = 30) -> None
 """Deploy core infrastructure services"""
+
+def deploy_services_remote(
+    profiles: List[str],
+    host: str,
+    user: str,
+    wait_time: int = 0,
+    remote_base: Optional[str] = None,
+    local_compose_dir: Optional[Path] = None,
+    preserve_paths: Optional[List[str]] = None,
+    restart_services: Optional[List[str]] = None
+) -> None
+"""Sync compose assets (optionally from a custom directory) to a VM and deploy via SSH"""
+
+def deploy_core_services_remote(
+    host: str,
+    user: str,
+    wait_time: int = 30,
+    remote_base: Optional[str] = None,
+    local_compose_dir: Optional[Path] = None,
+    preserve_paths: Optional[List[str]] = None,
+    restart_services: Optional[List[str]] = None
+) -> None
+"""Deploy core profiles on a remote VM via SSH"""
 ```
 
 **Dependencies**: `constants`, `utils`
@@ -239,6 +263,8 @@ def deploy_core_services(wait_time: int = 30) -> None
 **Configuration Requirements**:
 - Docker Compose file at `management-system/docker-compose-solution/`
 - Generated .env file with service configuration
+- Docker networks listed in `REQUIRED_DOCKER_NETWORKS` are created automatically if missing (e.g., `traefik_net`)
+- Remote deployments sync the compose directory to `~/<LEGACY_REMOTE_DEPLOY_DIR>` on the target host before running `docker compose`
 
 **Usage Example**:
 ```python
@@ -246,6 +272,7 @@ from scripts.modules import docker_deployer
 
 docker_deployer.deploy_core_services()
 docker_deployer.deploy_services(["media", "monitoring"])
+docker_deployer.deploy_core_services_remote("192.168.1.20", "testuser")
 ```
 
 ### 7. `nix_deployer.py` - NixOS Deployment
@@ -293,12 +320,13 @@ nix_deployer.install_nixos_flake_via_ssh("test-vm", "admin", staged)
 ```python
 def generate_traefik_dynamic_config(
     general_config: Dict,
-    selection_config: Dict
+    selection_config: Dict,
+    output_dir: Optional[Path] = None
 ) -> Path
 """Generate Traefik dynamic configuration"""
 
-def restart_traefik() -> None
-"""Restart Traefik container"""
+def restart_traefik(host: Optional[str] = None, user: Optional[str] = None) -> None
+"""Restart Traefik container locally or via SSH on a remote host"""
 ```
 
 **Dependencies**: `constants`, `utils`

@@ -10,7 +10,7 @@ This module handles:
 import time
 import yaml
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from . import constants
 from . import utils
@@ -18,7 +18,8 @@ from . import utils
 
 def generate_traefik_dynamic_config(
     general_config: Dict[str, Any],
-    selection_config: Dict[str, Any]
+    selection_config: Dict[str, Any],
+    output_dir: Optional[Path] = None,
 ) -> Path:
     """
     Generate the dynamic configuration file for Traefik.
@@ -38,9 +39,9 @@ def generate_traefik_dynamic_config(
     """
     print("🔧 Generating Traefik dynamic configuration...")
     domain = general_config.get("tenant_domain", constants.DEFAULT_DOMAIN)
-    traefik_dynamic_dir = constants.TRAEFIK_DYNAMIC_DIR
+    traefik_dynamic_dir = output_dir or constants.TRAEFIK_DYNAMIC_DIR
     traefik_dynamic_dir.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
-    config_path = constants.TRAEFIK_DYNAMIC_CONFIG_FILE
+    config_path = traefik_dynamic_dir / "generated_services.yml"
 
     traefik_config = {"http": {"routers": {}, "services": {}}}
     selected_services = selection_config.get("services", {})
@@ -84,18 +85,27 @@ def generate_traefik_dynamic_config(
         sys.exit(1)
 
 
-def restart_traefik() -> None:
+def restart_traefik(host: str | None = None, user: str | None = None) -> None:
     """
     Restart the Traefik container to pick up new dynamic config.
 
     Uses 'docker restart' for a single service rather than compose down/up.
     """
     print(f"🔄 Restarting Traefik to apply configuration...")
-    # Using 'docker restart' is simpler than compose down/up for a single service
-    utils.run_command(
-        ["docker", "restart", "traefik"],
-        cwd=constants.DOCKER_COMPOSE_DIR,
-        check=False  # check=False in case it wasn't running
-    )
+    if host and user:
+        utils.ssh_command(
+            host,
+            user,
+            "docker restart traefik",
+            check=False,
+            stream_output=True,
+        )
+    else:
+        # Using 'docker restart' is simpler than compose down/up for a single service
+        utils.run_command(
+            ["docker", "restart", "traefik"],
+            cwd=constants.DOCKER_COMPOSE_DIR,
+            check=False  # check=False in case it wasn't running
+        )
     time.sleep(5)  # Give it a moment to restart
     print(f"✅ Traefik restarted.")

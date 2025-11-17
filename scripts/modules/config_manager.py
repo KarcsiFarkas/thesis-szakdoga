@@ -13,7 +13,7 @@ import os
 import sys
 import yaml
 from pathlib import Path
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, Optional
 
 from . import constants
 
@@ -149,7 +149,8 @@ def load_tenant_config(tenant_name: str) -> Tuple[Dict[str, Any], Dict[str, Any]
 def generate_dotenv(
     general_config: Dict[str, Any],
     selection_config: Dict[str, Any],
-    services_def: Dict[str, Any]
+    services_def: Dict[str, Any],
+    target_dir: Path | None = None,
 ) -> Path:
     """
     Generate the .env.old file for Docker Compose based on tenant configuration.
@@ -166,8 +167,14 @@ def generate_dotenv(
         SystemExit: If .env.old file cannot be written
     """
     print("🔧 Generating Docker Compose .env files...")
-    dotenv_old_path = constants.DOCKER_COMPOSE_DIR / ".env.old"
-    dotenv_current_path = constants.DOCKER_COMPOSE_DIR / ".env"
+    compose_dir = target_dir or constants.DOCKER_COMPOSE_DIR
+    compose_dir.mkdir(parents=True, exist_ok=True)
+    base_env: Dict[str, str] = {}
+    example_env = compose_dir / ".env.example"
+    if example_env.exists():
+        base_env = _read_env_file(example_env)
+    dotenv_old_path = compose_dir / ".env.old"
+    dotenv_current_path = compose_dir / ".env"
     env_vars = {}
 
     # 1. Add general settings
@@ -198,9 +205,12 @@ def generate_dotenv(
     if "TRAEFIK_ACME_EMAIL" not in env_vars:
         env_vars["TRAEFIK_ACME_EMAIL"] = f"admin@{env_vars['DOMAIN']}"
 
+    merged_env = base_env.copy()
+    merged_env.update(env_vars)
+
     # 4. Serialize environment entries once
     lines: list[str] = []
-    for key, value in env_vars.items():
+    for key, value in merged_env.items():
         if any(c in value for c in [' ', '$', '#']):
             value_escaped = value.replace('"', '\\"')
             lines.append(f'{key}="{value_escaped}"')
@@ -267,3 +277,26 @@ def get_deployment_username(general_config: Dict[str, Any], vm_name: str) -> str
         print(f"❌ Error: could not determine SSH username. Set 'universal_username' in general.conf.yml or define users[].username for '{vm_name}' in install_config.yaml")
         sys.exit(1)
     return vm_username
+
+
+def _read_env_file(path: Path) -> Dict[str, str]:
+    """
+    Parse a simple KEY=VALUE .env-style file into a dictionary.
+    """
+    data: Dict[str, str] = {}
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            for raw_line in handle:
+                line = raw_line.strip()
+                if not line or line.startswith("#") or line.startswith(";"):
+                    continue
+                if "=" not in line:
+                    continue
+                key, val = line.split("=", 1)
+                key = key.strip()
+                if not key:
+                    continue
+                data[key] = val.strip().strip('"')
+    except FileNotFoundError:
+        return {}
+    return data

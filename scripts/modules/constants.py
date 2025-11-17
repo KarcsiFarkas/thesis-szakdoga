@@ -19,9 +19,12 @@ MS_CHEZMOI_DIR = ROOT_DIR / "ms-chezmoi"
 MGMT_SYSTEM_DIR = ROOT_DIR / "management-system"
 OS_INSTALL_DIR = MGMT_SYSTEM_DIR / "OS_install"
 DOCKER_COMPOSE_DIR = MGMT_SYSTEM_DIR / "docker-compose-solution"
+DOCKER_LEGACY_DIR = MGMT_SYSTEM_DIR / "docker-minimal-manual"
 SERVICES_JSON_PATH = MGMT_SYSTEM_DIR / "website" / "services.json"
 NIX_SOLUTION_DIR = MGMT_SYSTEM_DIR / "nix-solution"
 NIX_SERVICES_DIR = NIX_SOLUTION_DIR / "modules" / "services"
+LEGACY_REMOTE_DEPLOY_DIR = "paas-docker-runtime"
+LEGACY_REMOTE_STATIC_VOLUME_ROOT = "/opt"
 
 # --- Configuration Files ---
 PROXMOX_API_TOKEN_FILE = ROOT_DIR / "proxmox_api.txt"
@@ -43,6 +46,17 @@ CHEZMOI_POST_ANSIBLE_SCRIPT = CHEZMOI_SCRIPTS_DIR / "post-ansible-deploy.sh"
 # --- Traefik Configuration ---
 TRAEFIK_DYNAMIC_DIR = DOCKER_COMPOSE_DIR / "traefik" / "dynamic"
 TRAEFIK_DYNAMIC_CONFIG_FILE = TRAEFIK_DYNAMIC_DIR / "generated_services.yml"
+LEGACY_TRAEFIK_DYNAMIC_DIR = DOCKER_LEGACY_DIR / "configs" / "traefik" / "dynamic"
+LEGACY_TRAEFIK_DYNAMIC_CONFIG_FILE = LEGACY_TRAEFIK_DYNAMIC_DIR / "generated_services.yml"
+
+# --- Docker Networking ---
+REQUIRED_DOCKER_NETWORKS = [
+    {
+        "name": "traefik_net",
+        "driver": "bridge",
+        "attachable": True,
+    },
+]
 
 # --- Default Values ---
 DEFAULT_TIMEZONE = "Etc/UTC"

@@ -47,6 +47,8 @@ def deploy_docker_runtime(
     # Load tenant configuration
     general_conf, selection_conf = config_manager.load_tenant_config(tenant_name)
 
+    host_or_ip, _ = utils.get_vm_connection_info(vm_to_provision)
+
     if use_chezmoi:
         # Step 3a: Deploy via Chezmoi (recommended)
         section("Deploying via Chezmoi Configuration Management")
@@ -79,18 +81,30 @@ def deploy_docker_runtime(
         services_definition = config_manager.load_services_definition()
 
         # Generate Docker Configuration
-        config_manager.generate_dotenv(general_conf, selection_conf, services_definition)
-
-        # Deploy Core Services
-        docker_deployer.deploy_core_services()
-
-        # Configure Traefik and Dashboard
+        legacy_compose_dir = constants.DOCKER_LEGACY_DIR
+        config_manager.generate_dotenv(
+            general_conf,
+            selection_conf,
+            services_definition,
+            target_dir=legacy_compose_dir,
+        )
         section("Configuring Traefik and Dashboard")
-        traefik_config.generate_traefik_dynamic_config(general_conf, selection_conf)
-        # TODO: Implement generate_homepage_config(general_conf, selection_conf)
+        traefik_config.generate_traefik_dynamic_config(
+            general_conf,
+            selection_conf,
+            output_dir=constants.LEGACY_TRAEFIK_DYNAMIC_DIR,
+        )
         utils.log_info("Generating Homepage dashboard configuration... (TODO)")
 
-        traefik_config.restart_traefik()
+        # Deploy Core Services remotely
+        docker_deployer.deploy_core_services_remote(
+            host_or_ip,
+            vm_username,
+            local_compose_dir=legacy_compose_dir,
+            preserve_paths=["configs/homepage"],
+            restart_services=["homepage"],
+        )
+        traefik_config.restart_traefik(host=host_or_ip, user=vm_username)
 
     section("Deployment Summary")
     utils.log_success("Deployment process finished!")
@@ -147,7 +161,11 @@ def main(tenant_name: str, start_from_step: int = 1) -> None:
         general_conf_path = tenant_dir / "general.conf.yml"
         with open(general_conf_path, 'r') as f:
             general_config = yaml.safe_load(f) or {}
-        vm_to_provision = general_config.get("vm_hostname", f"{tenant_name}-vm")
+        vm_to_provision = (
+            general_config.get("deployment_target")
+            or general_config.get("vm_hostname")
+            or f"{tenant_name}-vm"
+        )
 
     # Load the tenant general config
     utils.log_info(f"🔧 Loading tenant config for {tenant_name}...")
