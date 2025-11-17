@@ -50,7 +50,8 @@ DEFAULT_DOMAIN = "example.local"
 DEFAULT_NIX_USERNAME = "nixuser"
 
 # --- Core Docker Services ---
-CORE_DOCKER_PROFILES = ["traefik", "vaultwarden", "homepage", "tailscale"]
+# Include postgres to satisfy Vaultwarden's database dependency during core deploys
+CORE_DOCKER_PROFILES = ["traefik", "vaultwarden", "homepage", "tailscale", "postgres"]
 CORE_SERVICES_WAIT_TIME = 30  # seconds to wait after deploying core services
 
 # --- SSH/Connection Settings ---
