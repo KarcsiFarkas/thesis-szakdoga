@@ -39,6 +39,7 @@ def generate_traefik_dynamic_config(
     """
     print("🔧 Generating Traefik dynamic configuration...")
     domain = general_config.get("tenant_domain", constants.DEFAULT_DOMAIN)
+    service_domains = general_config.get("service_domains", {}) or {}
     traefik_dynamic_dir = output_dir or constants.TRAEFIK_DYNAMIC_DIR
     traefik_dynamic_dir.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
     config_path = traefik_dynamic_dir / "generated_services.yml"
@@ -59,7 +60,11 @@ def generate_traefik_dynamic_config(
 
             router_name = f"{svc_id}-router"
             service_name = f"{svc_id}-service"
-            host_rule = f"Host(`{svc_id}.{domain}`)"
+            custom_host = service_domains.get(svc_id)
+            if custom_host:
+                host_rule = f"Host(`{custom_host}`)"
+            else:
+                host_rule = f"Host(`{svc_id}.{domain}`)"
 
             traefik_config["http"]["routers"][router_name] = {
                 "rule": host_rule,

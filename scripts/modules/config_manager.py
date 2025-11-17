@@ -10,6 +10,7 @@ This module handles:
 
 import json
 import os
+import re
 import sys
 import yaml
 from pathlib import Path
@@ -205,6 +206,13 @@ def generate_dotenv(
     if "TRAEFIK_ACME_EMAIL" not in env_vars:
         env_vars["TRAEFIK_ACME_EMAIL"] = f"admin@{env_vars['DOMAIN']}"
 
+    service_domains = general_config.get("service_domains", {}) or {}
+    for svc_id, host in service_domains.items():
+        if not host:
+            continue
+        env_key = f"SERVICE_HOST_{_sanitize_env_key(str(svc_id))}"
+        env_vars[env_key] = str(host)
+
     merged_env = base_env.copy()
     merged_env.update(env_vars)
 
@@ -277,6 +285,12 @@ def get_deployment_username(general_config: Dict[str, Any], vm_name: str) -> str
         print(f"❌ Error: could not determine SSH username. Set 'universal_username' in general.conf.yml or define users[].username for '{vm_name}' in install_config.yaml")
         sys.exit(1)
     return vm_username
+
+
+def _sanitize_env_key(value: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9]+", "_", value.upper())
+    cleaned = cleaned.strip("_")
+    return cleaned or "SERVICE"
 
 
 def _read_env_file(path: Path) -> Dict[str, str]:

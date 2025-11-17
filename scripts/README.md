@@ -147,6 +147,8 @@ def generate_dotenv(
 ) -> Path
 """Generate .env.old file for Docker Compose"""
 
+`service_domains` defined in `general.conf.yml` override individual hostnames (e.g., `service_domains: { traefik: proxy.example.com }`). Each entry becomes a `SERVICE_HOST_<SERVICE>` environment variable consumed by docker-minimal and Traefik.
+
 def load_services_definition() -> Dict
 """Load services.json"""
 

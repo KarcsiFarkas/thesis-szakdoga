@@ -109,10 +109,20 @@ def deploy_docker_runtime(
     section("Deployment Summary")
     utils.log_success("Deployment process finished!")
     domain = general_conf.get("tenant_domain", constants.DEFAULT_DOMAIN)
+    service_domains = general_conf.get("service_domains", {}) or {}
+    def host_for(service: str, default: str) -> str:
+        return service_domains.get(service, default)
+
     utils.log_info("Access services at:")
-    utils.log_info(f"  • Traefik Dashboard: http://localhost:8080 (or https://traefik.{domain})")
-    utils.log_info(f"  • Homepage: https://homepage.{domain}")
-    utils.log_info(f"  • Vaultwarden: https://vaultwarden.{domain}")
+    utils.log_info(
+        f"  • Traefik Dashboard: https://{host_for('traefik', f'traefik.{domain}')}"
+    )
+    utils.log_info(
+        f"  • Homepage: https://{host_for('homepage', domain)}"
+    )
+    utils.log_info(
+        f"  • Vaultwarden: https://{host_for('vaultwarden', f'vaultwarden.{domain}')}"
+    )
 
 
 def deploy_nix_runtime(tenant_name: str, vm_to_provision: str, vm_username: str) -> None:
