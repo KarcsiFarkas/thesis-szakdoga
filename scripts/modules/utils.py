@@ -58,6 +58,27 @@ def log_cmd(message: str) -> None:
     print(f"{_color('[CMD]', MAGENTA)} {message}")
 
 
+def command_exists(command: str) -> bool:
+    """
+    Check if a command exists in the system PATH.
+
+    Args:
+        command: Name of the command to check
+
+    Returns:
+        True if command exists, False otherwise
+    """
+    try:
+        result = subprocess.run(
+            ["which", command],
+            capture_output=True,
+            check=False
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
 _DEFAULT_SSH_IDENTITY: Optional[Path] = None
 
 

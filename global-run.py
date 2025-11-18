@@ -7,12 +7,22 @@ It coordinates VM provisioning, service deployment, and configuration management
 """
 
 import argparse
+import json
+import os
+import platform
+import shutil
+import socket
 import sys
+import time
+from datetime import datetime
+from pathlib import Path
+
 import yaml
 
 from scripts.modules import (
     chezmoi_deployer,
     config_manager,
+    credential_manager,
     proxmox_provisioner,
     docker_deployer,
     nix_deployer,
@@ -20,6 +30,95 @@ from scripts.modules import (
     utils,
     constants
 )
+
+
+class DeploymentMetrics:
+    def __init__(self, tenant: str, enabled: bool):
+        self.enabled = enabled
+        self.tenant = tenant
+        self.start_time = time.perf_counter()
+        self.data: dict[str, object] = {
+            "tenant": tenant,
+            "started_at": datetime.utcnow().isoformat() + "Z",
+            "environment": {
+                "host": socket.gethostname(),
+                "platform": platform.platform(),
+                "python": sys.version.split()[0],
+                "cpu_count": os.cpu_count(),
+            },
+            "steps": [],
+            "disk_snapshots": [],
+        }
+        tenant_dir = constants.MS_CONFIG_DIR / "tenants" / tenant
+        self.metrics_dir = tenant_dir / "metrics"
+        if self.enabled:
+            self.metrics_dir.mkdir(parents=True, exist_ok=True)
+        self._step_starts: dict[str, float] = {}
+        self._log_path: Path | None = None
+
+    def add_info(self, key: str, value: object) -> None:
+        if not self.enabled:
+            return
+        self.data.setdefault("metadata", {})[key] = value
+
+    def disk_snapshot(self, label: str, path: Path | None = None) -> None:
+        if not self.enabled:
+            return
+        target = path or constants.ROOT_DIR
+        try:
+            usage = shutil.disk_usage(target)
+        except FileNotFoundError:
+            return
+        snapshot = {
+            "label": label,
+            "path": str(target),
+            "total_gb": round(usage.total / (1024 ** 3), 2),
+            "used_gb": round((usage.total - usage.free) / (1024 ** 3), 2),
+            "free_gb": round(usage.free / (1024 ** 3), 2),
+        }
+        self.data["disk_snapshots"].append(snapshot)
+
+    def step_start(self, name: str) -> None:
+        if not self.enabled:
+            return
+        self._step_starts[name] = time.perf_counter()
+
+    def step_end(self, name: str, status: str = "completed", extra: dict | None = None) -> None:
+        if not self.enabled:
+            return
+        started = self._step_starts.pop(name, None)
+        duration = (time.perf_counter() - started) if started else None
+        entry = {
+            "name": name,
+            "status": status,
+        }
+        if duration is not None:
+            entry["duration_seconds"] = round(duration, 2)
+        if extra:
+            entry["details"] = extra
+        self.data["steps"].append(entry)
+
+    def step_skip(self, name: str, reason: str = "skipped") -> None:
+        if not self.enabled:
+            return
+        self.data["steps"].append({"name": name, "status": reason})
+
+    def finish(self, *, error: Exception | None = None) -> None:
+        if not self.enabled:
+            return
+        finished_at = datetime.utcnow().isoformat() + "Z"
+        duration = time.perf_counter() - self.start_time
+        self.data["finished_at"] = finished_at
+        self.data["duration_seconds"] = round(duration, 2)
+        self.data["status"] = "failed" if error else "completed"
+        if error:
+            self.data["error"] = str(error)
+
+        timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+        self._log_path = self.metrics_dir / f"metrics-{timestamp}.json"
+        with open(self._log_path, "w", encoding="utf-8") as handle:
+            json.dump(self.data, handle, indent=2)
+        utils.log_info(f"📊 Metrics saved to {self._log_path}")
 
 def section(title: str) -> None:
     print()
@@ -145,65 +244,151 @@ def deploy_nix_runtime(tenant_name: str, vm_to_provision: str, vm_username: str)
     utils.log_success("Nix deployment process finished! Reboot the VM to apply if needed.")
 
 
-def main(tenant_name: str, start_from_step: int = 1) -> None:
+def main(tenant_name: str, start_from_step: int = 1, *, metrics_enabled: bool = False, skip_credentials: bool = False) -> None:
     """
     Main execution flow for orchestration.
 
     Args:
         tenant_name: Name of the tenant to deploy
-        start_from_step: Step number to start from (1=validate, 2=provision, 3=deploy)
+        start_from_step: Step number to start from (1=validate, 2=provision, 3=credentials, 4=deploy)
+        skip_credentials: Skip credential generation step
     """
     utils.log_info(f"✨ Starting deployment process for tenant: {tenant_name} ✨")
     key_path = utils.ensure_tenant_ssh_identity(tenant_name)
     utils.set_default_ssh_identity(key_path)
+    metrics = DeploymentMetrics(tenant_name, metrics_enabled)
+    metrics.add_info("start_from_step", start_from_step)
 
     if start_from_step > 1:
         utils.log_warn(f"⚡ Starting from step {start_from_step} (skipping earlier steps)")
 
-    # Step 1: Validate Configurations
-    if start_from_step <= 1:
-        section("Step 1: Validating Configurations")
-        vm_to_provision = config_manager.lint_configurations(tenant_name)
-    else:
-        section("Step 1: Validating Configurations (SKIPPED)")
-        # Still need to determine VM name even if skipping
+    metrics.disk_snapshot("start-root", constants.ROOT_DIR)
+    metrics.disk_snapshot("start-docker", constants.DOCKER_LEGACY_DIR)
+
+    error: Exception | None = None
+    try:
+        # Step 1: Validate Configurations
+        if start_from_step <= 1:
+            section("Step 1: Validating Configurations")
+            metrics.step_start("validate_configurations")
+            try:
+                vm_to_provision = config_manager.lint_configurations(tenant_name)
+                metrics.step_end("validate_configurations", extra={"vm": vm_to_provision})
+            except Exception:
+                metrics.step_end("validate_configurations", status="failed")
+                raise
+        else:
+            section("Step 1: Validating Configurations (SKIPPED)")
+            metrics.step_skip("validate_configurations")
+            tenant_dir = constants.MS_CONFIG_DIR / "tenants" / tenant_name
+            general_conf_path = tenant_dir / "general.conf.yml"
+            with open(general_conf_path, 'r') as f:
+                general_config = yaml.safe_load(f) or {}
+            vm_to_provision = (
+                general_config.get("deployment_target")
+                or general_config.get("vm_hostname")
+                or f"{tenant_name}-vm"
+            )
+
+        # Load the tenant general config
+        utils.log_info(f"🔧 Loading tenant config for {tenant_name}...")
         tenant_dir = constants.MS_CONFIG_DIR / "tenants" / tenant_name
         general_conf_path = tenant_dir / "general.conf.yml"
         with open(general_conf_path, 'r') as f:
             general_config = yaml.safe_load(f) or {}
-        vm_to_provision = (
-            general_config.get("deployment_target")
-            or general_config.get("vm_hostname")
-            or f"{tenant_name}-vm"
-        )
 
-    # Load the tenant general config
-    utils.log_info(f"🔧 Loading tenant config for {tenant_name}...")
-    tenant_dir = constants.MS_CONFIG_DIR / "tenants" / tenant_name
-    general_conf_path = tenant_dir / "general.conf.yml"
-    with open(general_conf_path, 'r') as f:
-        general_config = yaml.safe_load(f) or {}
+        deployment_runtime = str(general_config.get("deployment_runtime", "docker")).lower()
+        metrics.add_info("deployment_runtime", deployment_runtime)
+        metrics.add_info("tenant_domain", general_config.get("tenant_domain"))
+        metrics.add_info("vm_target", vm_to_provision)
 
-    deployment_runtime = str(general_config.get("deployment_runtime", "docker")).lower()
+        # Determine SSH username
+        vm_username = config_manager.get_deployment_username(general_config, vm_to_provision)
 
-    # Determine SSH username
-    vm_username = config_manager.get_deployment_username(general_config, vm_to_provision)
-
-    # Step 2: Provision Proxmox VM
-    if start_from_step <= 2:
-        section(f"Step 2: Provisioning Proxmox VM ({vm_to_provision})")
-        proxmox_provisioner.provision_proxmox_vm(vm_to_provision, vm_username)
-    else:
-        section(f"Step 2: Provisioning Proxmox VM ({vm_to_provision}) (SKIPPED)")
-
-    # Step 3+: Runtime-specific deployment
-    if start_from_step <= 3:
-        if deployment_runtime == "nix":
-            deploy_nix_runtime(tenant_name, vm_to_provision, vm_username)
+        # Step 2: Provision Proxmox VM
+        if start_from_step <= 2:
+            section(f"Step 2: Provisioning Proxmox VM ({vm_to_provision})")
+            metrics.step_start("provision_vm")
+            try:
+                proxmox_provisioner.provision_proxmox_vm(vm_to_provision, vm_username)
+                metrics.step_end("provision_vm", extra={"vm": vm_to_provision})
+            except Exception:
+                metrics.step_end("provision_vm", status="failed")
+                raise
         else:
-            deploy_docker_runtime(tenant_name, general_config, vm_to_provision, vm_username)
-    else:
-        section("Step 3: Service Deployment (SKIPPED)")
+            section(f"Step 2: Provisioning Proxmox VM ({vm_to_provision}) (SKIPPED)")
+            metrics.step_skip("provision_vm")
+
+        # Step 3: Generate Credentials
+        temp_auth_dir = None
+        if not skip_credentials and start_from_step <= 3:
+            section("Step 3: Generating Service Credentials")
+            metrics.step_start("generate_credentials")
+            try:
+                password_mode = general_config.get("password_mode", "global")
+                global_password = os.environ.get("GLOBAL_PASSWORD")
+
+                # Validate global password if needed
+                if password_mode != "generate" and not global_password:
+                    utils.log_warn("⚠️  password_mode is not 'generate' but GLOBAL_PASSWORD not set")
+                    utils.log_warn("⚠️  Skipping credential generation. Set GLOBAL_PASSWORD or change password_mode to 'generate'")
+                    metrics.step_skip("generate_credentials", reason="no_global_password")
+                else:
+                    temp_auth_dir = credential_manager.generate_credentials(
+                        tenant_name,
+                        global_password=global_password
+                    )
+                    metrics.step_end("generate_credentials", extra={"credentials_dir": str(temp_auth_dir)})
+
+                    utils.log_info("")
+                    utils.log_info("📋 Credential files generated:")
+                    utils.log_info(f"   Location: {temp_auth_dir}")
+                    utils.log_info("   - credentials.env (service credentials)")
+                    utils.log_info("   - db-credentials.env (database credentials)")
+                    utils.log_info("   - bitwarden-import.json (for bw CLI import)")
+                    utils.log_info("   - bitwarden-import.csv (for web UI import)")
+                    utils.log_info("")
+                    utils.log_warn("⚠️  Remember to import to Bitwarden after deployment!")
+                    utils.log_info(f"📖 See {temp_auth_dir}/README.md for import instructions")
+                    utils.log_info("")
+
+            except credential_manager.CredentialManagerError as e:
+                utils.log_error(f"Credential generation failed: {e}")
+                metrics.step_end("generate_credentials", status="failed")
+                utils.log_warn("Continuing without credential generation...")
+            except Exception:
+                metrics.step_end("generate_credentials", status="failed")
+                raise
+        else:
+            if skip_credentials:
+                section("Step 3: Generating Service Credentials (SKIPPED - disabled)")
+            else:
+                section("Step 3: Generating Service Credentials (SKIPPED)")
+            metrics.step_skip("generate_credentials")
+
+        # Step 4+: Runtime-specific deployment
+        if start_from_step <= 4:
+            metrics.step_start("deploy_runtime")
+            try:
+                if deployment_runtime == "nix":
+                    deploy_nix_runtime(tenant_name, vm_to_provision, vm_username)
+                else:
+                    deploy_docker_runtime(tenant_name, general_config, vm_to_provision, vm_username)
+                metrics.step_end("deploy_runtime", extra={"runtime": deployment_runtime})
+            except Exception:
+                metrics.step_end("deploy_runtime", status="failed")
+                raise
+        else:
+            section("Step 4: Service Deployment (SKIPPED)")
+            metrics.step_skip("deploy_runtime")
+
+    except Exception as exc:
+        error = exc
+        raise
+    finally:
+        metrics.disk_snapshot("end-root", constants.ROOT_DIR)
+        metrics.disk_snapshot("end-docker", constants.DOCKER_LEGACY_DIR)
+        metrics.finish(error=error)
 
 
 if __name__ == "__main__":
@@ -225,11 +410,21 @@ if __name__ == "__main__":
         help="Disable Chezmoi and use legacy deployment method."
     )
     parser.add_argument(
+        "--metrics",
+        action="store_true",
+        help="Record deployment metrics (overrides METRIC env var)."
+    )
+    parser.add_argument(
         "--start-from-step",
         type=int,
         default=1,
-        choices=[1, 2, 3],
-        help="Step to start deployment from: 1=Validate Config, 2=Provision VM, 3=Deploy Services (default: 1)"
+        choices=[1, 2, 3, 4],
+        help="Step to start deployment from: 1=Validate Config, 2=Provision VM, 3=Generate Credentials, 4=Deploy Services (default: 1)"
+    )
+    parser.add_argument(
+        "--skip-credentials",
+        action="store_true",
+        help="Skip credential generation step (use existing or manual credentials)"
     )
     args = parser.parse_args()
 
@@ -241,4 +436,12 @@ if __name__ == "__main__":
     if args.no_chezmoi:
         utils.log_warn("⚠️ Chezmoi disabled - using legacy deployment method")
 
-    main(args.tenant, start_from_step=args.start_from_step)
+    env_metric = os.environ.get("METRIC", "")
+    metrics_enabled = args.metrics or env_metric.lower() in {"1", "true", "yes", "on"}
+
+    main(
+        args.tenant,
+        start_from_step=args.start_from_step,
+        metrics_enabled=metrics_enabled,
+        skip_credentials=args.skip_credentials
+    )

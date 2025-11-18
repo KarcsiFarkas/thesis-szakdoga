@@ -69,8 +69,7 @@ def generate_traefik_dynamic_config(
             traefik_config["http"]["routers"][router_name] = {
                 "rule": host_rule,
                 "service": service_name,
-                "entryPoints": ["websecure"],
-                "tls": {"certResolver": "letsencrypt"}  # Assuming letsencrypt is your resolver
+                "entryPoints": ["web"],
             }
             traefik_config["http"]["services"][service_name] = {
                 "loadBalancer": {
