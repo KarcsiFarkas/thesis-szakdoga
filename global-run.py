@@ -26,6 +26,7 @@ from scripts.modules import (
     proxmox_provisioner,
     docker_deployer,
     nix_deployer,
+    nixos_anywhere_deployer,
     traefik_config,
     utils,
     constants
@@ -224,24 +225,45 @@ def deploy_docker_runtime(
     )
 
 
-def deploy_nix_runtime(tenant_name: str, vm_to_provision: str, vm_username: str) -> None:
+def deploy_nix_runtime(
+    tenant_name: str,
+    general_config: dict,
+    vm_to_provision: str,
+    vm_username: str,
+) -> None:
     """
     Execute NixOS-based deployment workflow.
 
     Args:
         tenant_name: Name of the tenant
+        general_config: Tenant general configuration
         vm_to_provision: Name of the VM to provision
         vm_username: SSH username for the VM
     """
-    # Step 3 (Nix): Stage and install flake on the remote NixOS machine
-    section("Step 3: Staging NixOS flake for selected services")
+    section("Step 3: NixOS Deployment (nixos-anywhere)")
+    try:
+        nixos_anywhere_deployer.deploy_with_nixos_anywhere(
+            tenant_name,
+            vm_to_provision,
+            vm_username,
+            general_config,
+        )
+        section("Nix Deployment")
+        utils.log_success("Nix deployment process finished via nixos-anywhere!")
+        return
+    except nixos_anywhere_deployer.NixosAnywhereDeploymentError as exc:
+        utils.log_warn(f"nixos-anywhere deployment failed: {exc}")
+        utils.log_warn("Falling back to legacy nix flake installation...")
+
+    # Fallback: Stage and install the legacy flake on the remote NixOS machine
+    section("Fallback: Staging NixOS flake for selected services")
     staged_dir = nix_deployer.stage_nix_solution_for_tenant(tenant_name)
 
-    section("Step 4: NixOS Flake Installation")
+    section("Fallback: NixOS flake installation")
     nix_deployer.install_nixos_flake_via_ssh(vm_to_provision, vm_username, local_nix_dir=staged_dir)
 
     section("Nix Deployment")
-    utils.log_success("Nix deployment process finished! Reboot the VM to apply if needed.")
+    utils.log_success("Nix deployment process finished via nix flake fallback. Reboot the VM to apply if needed.")
 
 
 def main(tenant_name: str, start_from_step: int = 1, *, metrics_enabled: bool = False, skip_credentials: bool = False) -> None:
@@ -297,7 +319,9 @@ def main(tenant_name: str, start_from_step: int = 1, *, metrics_enabled: bool = 
         with open(general_conf_path, 'r') as f:
             general_config = yaml.safe_load(f) or {}
 
-        deployment_runtime = str(general_config.get("deployment_runtime", "docker")).lower()
+        deployment_runtime_raw = str(general_config.get("deployment_runtime", "docker"))
+        deployment_runtime = deployment_runtime_raw.lower()
+        deployment_runtime_normalized = deployment_runtime.replace("_", "-")
         metrics.add_info("deployment_runtime", deployment_runtime)
         metrics.add_info("tenant_domain", general_config.get("tenant_domain"))
         metrics.add_info("vm_target", vm_to_provision)
@@ -370,8 +394,8 @@ def main(tenant_name: str, start_from_step: int = 1, *, metrics_enabled: bool = 
         if start_from_step <= 4:
             metrics.step_start("deploy_runtime")
             try:
-                if deployment_runtime == "nix":
-                    deploy_nix_runtime(tenant_name, vm_to_provision, vm_username)
+                if deployment_runtime_normalized in {"nix", "nixos", "nixos-anywhere", "proxmox"}:
+                    deploy_nix_runtime(tenant_name, general_config, vm_to_provision, vm_username)
                 else:
                     deploy_docker_runtime(tenant_name, general_config, vm_to_provision, vm_username)
                 metrics.step_end("deploy_runtime", extra={"runtime": deployment_runtime})

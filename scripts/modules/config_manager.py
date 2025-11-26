@@ -56,6 +56,7 @@ def lint_configurations(tenant_name: str) -> str:
         with open(tenant_general, 'r') as f:
             general_config = yaml.safe_load(f) or {}
     runtime = str(general_config.get("deployment_runtime", "docker")).lower()
+    runtime_normalized = runtime.replace("_", "-")
 
     # Runtime-specific requirements
     if runtime == "docker":
@@ -63,9 +64,10 @@ def lint_configurations(tenant_name: str) -> str:
             "Services JSON": constants.SERVICES_JSON_PATH,
             "Docker Compose File": constants.DOCKER_COMPOSE_FILE,
         })
-    elif runtime == "nix":
+    elif runtime_normalized in {"nix", "nixos", "nixos-anywhere", "proxmox"}:
         required_paths.update({
             "Nix Flake Installer": constants.NIX_FLAKE_INSTALLER,
+            "NixOS Anywhere flake": constants.NIXOS_ANYWHERE_FLAKE,
         })
 
     for name, path in required_paths.items():
@@ -140,8 +142,9 @@ def load_tenant_config(tenant_name: str) -> Tuple[Dict[str, Any], Dict[str, Any]
     else:
         print(f"⚠️ Warning: Selection config not found: {selection_path}")
 
-    if not general_config.get("deployment_runtime") == "docker":
-        print(f"⚠️ Warning: Tenant '{tenant_name}' is not configured for 'docker' runtime. Proceeding anyway.")
+    runtime = str(general_config.get("deployment_runtime", "docker")).lower()
+    if runtime != "docker":
+        print(f"ℹ️  Tenant '{tenant_name}' runtime set to '{runtime}'. Docker-specific settings will be skipped.")
 
     print("✅ Tenant configuration loaded.")
     return general_config, selection_config

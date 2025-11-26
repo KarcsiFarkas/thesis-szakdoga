@@ -21,8 +21,12 @@ OS_INSTALL_DIR = MGMT_SYSTEM_DIR / "OS_install"
 DOCKER_COMPOSE_DIR = MGMT_SYSTEM_DIR / "docker-compose-solution"
 DOCKER_LEGACY_DIR = MGMT_SYSTEM_DIR / "docker-minimal-manual"
 SERVICES_JSON_PATH = MGMT_SYSTEM_DIR / "website" / "services.json"
-NIX_SOLUTION_DIR = MGMT_SYSTEM_DIR / "nix-solution"
+
+# Nix solutions
+NIX_SOLUTION_ROOT = MGMT_SYSTEM_DIR / "nix-solution"
+NIX_SOLUTION_DIR = NIX_SOLUTION_ROOT / "nix-flake"
 NIX_SERVICES_DIR = NIX_SOLUTION_DIR / "modules" / "services"
+NIXOS_ANYWHERE_DIR = NIX_SOLUTION_ROOT / "nixos-anywhere"
 LEGACY_REMOTE_DEPLOY_DIR = "paas-docker-runtime"
 LEGACY_REMOTE_STATIC_VOLUME_ROOT = "/opt"
 
@@ -34,6 +38,8 @@ OS_INSTALL_DEFAULTS = OS_INSTALL_DIR / "configs" / "defaults.yaml"
 PROXMOX_PROVISIONER_SCRIPT = OS_INSTALL_DIR / "provision.py"
 DOCKER_COMPOSE_FILE = DOCKER_COMPOSE_DIR / "docker-compose.yml"
 NIX_FLAKE_INSTALLER = NIX_SOLUTION_DIR / "install.sh"
+NIXOS_ANYWHERE_FLAKE = NIXOS_ANYWHERE_DIR / "flake.nix"
+NIXOS_ANYWHERE_DEPLOY_TENANT_SCRIPT = NIXOS_ANYWHERE_DIR / "scripts" / "deploy-tenant.sh"
 
 # --- Staging Directory ---
 STAGED_ROOT_DIR = ROOT_DIR / ".staged"
