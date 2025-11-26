@@ -5,6 +5,7 @@ __pycache__/
 *.py[cod]
 .env
 .venv/
+.venv-wsl/
 # Node/npm if present
 node_modules/
 # Add to your .gitignore
