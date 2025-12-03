@@ -137,6 +137,7 @@ def ensure_tenant_ssh_identity(tenant_name: str) -> Path:
         f"{tenant_name}@thesis-orchestrator",
     ]
     run_command(cmd, cwd=tenant_dir, stream_output=False, label="ssh-keygen")
+    priv_key.chmod(0o600)
     return priv_key.resolve()
 
 class DebugContext:
