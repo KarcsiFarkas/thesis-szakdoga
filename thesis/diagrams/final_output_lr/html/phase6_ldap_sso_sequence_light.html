@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>phase6_ldap_sso_sequence</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default', 
+            securityLevel: 'loose'
+        });
+    </script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #ffffff; 
+            color: #333333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container { 
+            text-align: center;
+            padding: 20px;
+            width: 90%;
+        }
+        h1 { margin-bottom: 20px; font-size: 1.5rem; opacity: 0.8; }
+        /* Center the diagram */
+        .mermaid { display: flex; justify-content: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>phase6_ldap_sso_sequence</h1>
+        <div class="mermaid">
+            sequenceDiagram
+                autonumber
+                participant U as Felhasználó
+                participant P as Prov Script
+                participant L as LLDAP
+                participant A as Authelia
+                participant T as Traefik
+                participant S as Service (GitLab)
+            
+                Note over U,L: Setup & Provisioning
+                P->>L: GraphQL: createUser(username, email)
+                P->>L: Password Set (Universal/Generated)
+                L->>L: Store in users.db
+            
+                Note over U,S: Access Flow
+                U->>T: Request gitlab.example.com
+                T->>A: Forward Auth Check
+                A->>A: Check Session Cookie?
+                A-->>T: No Session (401)
+                T-->>U: Redirect to auth.example.com
+            
+                Note over U,A: Login Process
+                U->>A: Login Form (User/Pass)
+                A->>L: LDAP Bind (Credentials Check)
+                L-->>A: OK
+                A->>U: TOTP Challenge (2FA)
+                U->>A: Submit TOTP Code
+                A->>A: Validate Code
+                A-->>U: Set Session Cookie
+            
+                Note over U,S: Authenticated Access
+                U->>T: Request gitlab.example.com (with Cookie)
+                T->>A: Forward Auth Check
+                A->>A: Verify Cookie
+                A-->>T: OK + Headers (Remote-User)
+                T->>S: Forward Request
+                S-->>U: App Dashboard (Logged In)
+        </div>
+    </div>
+</body>
+</html>

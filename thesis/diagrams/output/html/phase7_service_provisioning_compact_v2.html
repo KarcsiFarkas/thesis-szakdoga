@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fázis 7: Szolgáltatás Konfiguráció</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#e1f5fe',
+                edgeLabelBackground: '#ffffff',
+                tertiaryColor: '#f1f8e9',
+                lineColor: '#333333',
+                fontFamily: 'Arial, sans-serif',
+                fontSize: '14px'
+            },
+            flowchart: {
+                htmlLabels: true,
+                curve: 'basis',
+                padding: 15
+            }
+        });
+    </script>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            max-width: 210mm;
+            margin: 0 auto;
+        }
+
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-top: 0;
+            font-size: 24px;
+        }
+
+        .diagram-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+            page-break-inside: avoid;
+        }
+
+        .mermaid {
+            max-width: 100%;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Fázis 7: Szolgáltatás Konfiguráció</h1>
+
+        <div class="diagram-container">
+            <div class="mermaid">
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'13px'}}}%%
+flowchart LR
+    subgraph CORE[LDAP User]
+        A[username<br/>email<br/>password]
+    end
+
+    subgraph NC[Nextcloud]
+        direction TB
+        B[Wait Healthy] --> C[occ user:add]
+        C --> D[LDAP Config]
+        D --> E[✓ NC Ready]
+    end
+
+    subgraph GL[GitLab]
+        direction TB
+        F[Wait API] --> G[POST<br/>/api/v4/users]
+        G --> H[LDAP Sync]
+        H --> I[✓ GL Ready]
+    end
+
+    subgraph JF[Jellyfin]
+        direction TB
+        J[Wait UI] --> K[POST<br/>/Users/New]
+        K --> L[LDAP Plugin]
+        L --> M[✓ JF Ready]
+    end
+
+    subgraph VW[Vaultwarden]
+        direction TB
+        N[Admin Panel] --> O[Invite User]
+        O --> P[✓ VW Ready]
+    end
+
+    A --> B & F & J & N
+    E & I & M & P --> Q([All Services<br/>Provisioned])
+
+    style Q fill:#d4edda,stroke:#28a745,stroke-width:2px
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>PaaS Infrastructure Automation Framework | BME-VIK Diplomaterv</p>
+        </div>
+    </div>
+</body>
+</html>

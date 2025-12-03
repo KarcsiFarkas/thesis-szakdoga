@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>phase5_traefik_ssl_compact</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default', 
+            securityLevel: 'loose'
+        });
+    </script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #ffffff; 
+            color: #333333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container { 
+            text-align: center;
+            padding: 20px;
+            width: 90%;
+        }
+        h1 { margin-bottom: 20px; font-size: 1.5rem; opacity: 0.8; }
+        /* Center the diagram */
+        .mermaid { display: flex; justify-content: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>phase5_traefik_ssl_compact</h1>
+        <div class="mermaid">
+            %%{init: {"theme": "base", "themeVariables": { "fontSize": "14px"}}}%%
+            flowchart LR
+            
+                subgraph PHASE5_TRAEFIK_SSL ["Fázis 5: Traefik & SSL Automatizálás"]
+                    direction TB
+            
+                    subgraph SERVICE_DISCOVERY ["Service Discovery"]
+                        direction TB
+                        P1["1. Docker/NixOS Events"] --> P2["2. Traefik Watch"]
+                        P2 --> P3["3. Dynamic Routers"]
+                        P3 --> P4["4. Middleware Chain"]
+                    end
+            
+                    subgraph SSL_CERTIFICATE ["SSL Tanúsítvány"]
+                        direction TB
+                        P5["5. HTTPS Request"] --> P6{6. Cert Exists?}
+                        P6 -->|No| P7["7. Let's Encrypt HTTP-01"]
+                        P7 --> P8["8. Domain Validation"]
+                        P8 --> P9["9. Cert Issue"]
+                        P9 --> P10["10. acme.json Store"]
+                        P6 -->|Yes| P10
+                    end
+            
+                    subgraph ROUTING_ACTIVATION ["Routing Aktiválás"]
+                        direction TB
+                        P11["11. TLS Handshake"] --> P12["12. Client"]
+                        P12 --> P13["13. Traefik :443"]
+                        P13 --> P14["14. Auth Check"]
+                        P14 --> P15["15. Backend Service"]
+                        P15 --> P16["16. Response"]
+                    end
+            
+                    subgraph AUTO_RENEWAL ["Auto-Megújítás"]
+                        direction TB
+                        P17["17. Cert Monitor"] --> P18{18. 30 days to expiry?}
+                        P18 -->|Yes| P19["19. Auto Renew"]
+                        P18 -->|No| P20["20. Continue"]
+                        P20 --> P21(["21. Complete"])
+                    end
+            
+                    SERVICE_DISCOVERY --> SSL_CERTIFICATE
+                    SSL_CERTIFICATE --> ROUTING_ACTIVATION
+                    ROUTING_ACTIVATION --> AUTO_RENEWAL
+            
+                    P4 --> P5
+                    P10 --> P11
+                    P16 --> P17
+            
+                end
+            
+                %% --- STYLING ---
+                style PHASE5_TRAEFIK_SSL fill:#f9f9f9,stroke:#333,stroke-width:2px
+                style SERVICE_DISCOVERY fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+                style SSL_CERTIFICATE fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+                style ROUTING_ACTIVATION fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px
+                style AUTO_RENEWAL fill:#bbdefb,stroke:#1976d2,stroke-width:2px
+            
+                style P21 fill:#28a745,stroke:#1e7e34,color:#ffffff,stroke-width:2px
+        </div>
+    </div>
+</body>
+</html>

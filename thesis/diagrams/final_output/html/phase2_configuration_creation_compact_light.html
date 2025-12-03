@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>phase2_configuration_creation_compact</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default', 
+            securityLevel: 'loose'
+        });
+    </script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #ffffff; 
+            color: #333333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container { 
+            text-align: center;
+            padding: 20px;
+            width: 90%;
+        }
+        h1 { margin-bottom: 20px; font-size: 1.5rem; opacity: 0.8; }
+        /* Center the diagram */
+        .mermaid { display: flex; justify-content: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>phase2_configuration_creation_compact</h1>
+        <div class="mermaid">
+            %%{init: {"theme": "base", "themeVariables": { "fontSize": "14px"}}}%%
+            flowchart LR
+            
+                subgraph PHASE2_CONFIG ["Fázis 2: Konfiguráció Létrehozása"]
+                    direction TB
+            
+                    subgraph USER_INPUT ["Felhasználói Input"]
+                        direction TB
+                        P1["1. Config Név"] --> P4
+                        P2["2. Domain"] --> P4
+                        P3["3. Services<br/>(Nextcloud, GitLab, Jellyfin)"] --> P4
+                        P4["4. Form Submit"]
+                    end
+            
+                    subgraph PASSWORD_STRATEGY ["Jelszó Stratégia"]
+                        direction TB
+                        P5{5. Jelszó Típus?}
+                        P5 -->|Universal| P6["6. Egy Jelszó<br/>(Mindenhol)"]
+                        P5 -->|Generated| P7["7. Egyedi/Service<br/>(Vaultwarden)"]
+                    end
+            
+                    subgraph GITOPS_OPS ["Git Műveletek"]
+                        direction TB
+                        P8["8. Branch:<br/>user-config"]
+                        P9["9. config.env"]
+                        P10["10. services.env"]
+                        P8 --> P9
+                        P8 --> P10
+                        P9 & P10 --> P11["11. Commit & Push"]
+                    end
+            
+                    subgraph DB_PERSISTENCE ["Adatbázis Mentés"]
+                        direction TB
+                        P12["12. Config Rekord"] --> P13["13. User Link"]
+                        P13 --> P14(["14. Konfiguráció Kész"])
+                    end
+            
+                    USER_INPUT --> PASSWORD_STRATEGY
+                    PASSWORD_STRATEGY --> GITOPS_OPS
+                    GITOPS_OPS --> DB_PERSISTENCE
+            
+                    P4 --> P5
+                    P6 & P7 --> P8
+                    P11 --> P12
+                end
+            
+                %% --- STYLING ---
+                style PHASE2_CONFIG fill:#f9f9f9,stroke:#333,stroke-width:2px
+                style USER_INPUT fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+                style PASSWORD_STRATEGY fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+                style GITOPS_OPS fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px
+                style DB_PERSISTENCE fill:#bbdefb,stroke:#1976d2,stroke-width:2px
+            
+                style P14 fill:#28a745,stroke:#1e7e34,color:#ffffff,stroke-width:2px
+        </div>
+    </div>
+</body>
+</html>

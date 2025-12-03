@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fázis 4B: NixOS Deployment</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#e1f5fe',
+                edgeLabelBackground: '#ffffff',
+                tertiaryColor: '#f1f8e9',
+                lineColor: '#333333',
+                fontFamily: 'Arial, sans-serif',
+                fontSize: '14px'
+            },
+            flowchart: {
+                htmlLabels: true,
+                curve: 'basis',
+                padding: 15
+            }
+        });
+    </script>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            max-width: 210mm;
+            margin: 0 auto;
+        }
+
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-top: 0;
+            font-size: 24px;
+        }
+
+        .diagram-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+            page-break-inside: avoid;
+        }
+
+        .mermaid {
+            max-width: 100%;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Fázis 4B: NixOS Deployment</h1>
+
+        <div class="diagram-container">
+            <div class="mermaid">
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'13px'}}}%%
+flowchart TB
+    subgraph CONFIG[Konfiguráció]
+        direction LR
+        A[flake.nix] --> B[Service<br/>Modules]
+        B --> C[Host<br/>Config]
+    end
+
+    subgraph VALIDATE[Validálás]
+        direction TB
+        D[nix flake<br/>check] --> E{OK?}
+        E -->|No| F[Fix Errors]
+        F --> D
+    end
+
+    subgraph BUILD[Build]
+        direction LR
+        G[nixos-rebuild<br/>build] --> H{Cache Hit<br/>92%?}
+        H -->|Yes| I[Download]
+        H -->|No| J[Build Local]
+        I --> K[Profile Ready]
+        J --> K
+    end
+
+    subgraph ACTIVATE[Aktiválás]
+        direction TB
+        L[nixos-rebuild<br/>switch] --> M[Symlink<br/>Switch]
+        M --> N[systemd<br/>Reload]
+        N --> O[Services<br/>Start]
+    end
+
+    subgraph CHECK[Ellenőrzés]
+        direction LR
+        P{All Active?}
+        P -->|Yes| Q([NixOS OK])
+        P -->|No| R[Rollback<br/>--rollback]
+    end
+
+    C --> D
+    E -->|Yes| G
+    K --> L
+    O --> P
+
+    style Q fill:#d4edda,stroke:#28a745,stroke-width:2px
+    style R fill:#fff3cd,stroke:#ffc107,stroke-width:2px
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>PaaS Infrastructure Automation Framework | BME-VIK Diplomaterv</p>
+        </div>
+    </div>
+</body>
+</html>

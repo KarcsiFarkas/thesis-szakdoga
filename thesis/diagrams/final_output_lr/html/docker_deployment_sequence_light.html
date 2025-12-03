@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>docker_deployment_sequence</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default', 
+            securityLevel: 'loose'
+        });
+    </script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #ffffff; 
+            color: #333333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container { 
+            text-align: center;
+            padding: 20px;
+            width: 90%;
+        }
+        h1 { margin-bottom: 20px; font-size: 1.5rem; opacity: 0.8; }
+        /* Center the diagram */
+        .mermaid { display: flex; justify-content: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>docker_deployment_sequence</h1>
+        <div class="mermaid">
+            sequenceDiagram
+                autonumber
+                participant U as Tester
+                participant S as Deploy Script
+                participant D as Docker Engine
+                participant H as Health Check
+            
+                loop 15x Cycles
+                    Note over U,D: Clean State
+                    U->>S: docker-compose down -v
+                    S->>D: Remove Containers & Volumes
+            
+                    Note over U,D: Deployment
+                    U->>S: Deploy Script (LDAP, Nextcloud...)
+                    S->>D: Up Services
+            
+                    Note over S,H: Validation
+                    S->>H: Check Service Health
+                    H-->>S: All Healthy
+                    S->>H: Smoke Test (Login)
+                    H-->>S: Login OK
+                    
+                    S-->>U: Cycle Success
+                end
+            
+                Note over U: Results: 100% Success Rate
+        </div>
+    </div>
+</body>
+</html>

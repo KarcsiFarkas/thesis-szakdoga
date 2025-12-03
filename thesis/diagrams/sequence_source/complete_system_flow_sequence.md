@@ -1,0 +1,51 @@
+# Sequence Diagram: Complete System Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant DB as Dashboard/DB
+    participant TF as Terraform/Proxmox
+    participant D as Deployment (Docker/Nix)
+    participant T as Traefik
+    participant A as Authelia/LDAP
+    participant S as Services (Apps)
+
+    Note over U,DB: Phase 1 & 2: Onboarding & Config
+    U->>DB: Register & Login
+    DB-->>U: Dashboard
+    U->>DB: Create Configuration (Services, Domain, Pwd)
+    DB->>DB: Save Config (Git + DB)
+
+    Note over U,TF: Phase 3: Infrastructure (Optional)
+    alt Need New VM?
+        U->>TF: Provision VM (Terraform)
+        TF->>TF: Create VM & Cloud-init
+        TF-->>U: VM Ready
+    end
+
+    Note over U,D: Phase 4: Deployment
+    U->>D: Deploy Services (Docker/NixOS)
+    D->>D: Pull Images / Build System
+    D->>D: Start Core (Traefik, Auth)
+    D->>D: Start Apps (Nextcloud, GitLab...)
+    D-->>U: Deployment Complete
+
+    Note over T,A: Phase 5 & 6: Discovery & Identity
+    T->>T: Service Discovery & SSL Auto
+    D->>A: Provision Users in LDAP
+    A->>A: Set Passwords (Univ/Gen)
+
+    Note over U,S: Phase 7, 8, 9: Access & Ops
+    U->>T: Access Service (HTTPS)
+    T->>A: Forward Auth (SSO)
+    A->>U: Login & 2FA
+    A-->>T: Session Valid
+    T->>S: Proxy Request
+    S-->>U: App Interface
+    
+    loop Monitoring
+        D->>D: Check Health
+        D->>D: Daily Backup
+    end
+```

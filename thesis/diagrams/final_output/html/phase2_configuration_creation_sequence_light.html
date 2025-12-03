@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>phase2_configuration_creation_sequence</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default', 
+            securityLevel: 'loose'
+        });
+    </script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #ffffff; 
+            color: #333333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container { 
+            text-align: center;
+            padding: 20px;
+            width: 90%;
+        }
+        h1 { margin-bottom: 20px; font-size: 1.5rem; opacity: 0.8; }
+        /* Center the diagram */
+        .mermaid { display: flex; justify-content: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>phase2_configuration_creation_sequence</h1>
+        <div class="mermaid">
+            sequenceDiagram
+                autonumber
+                participant U as Felhasználó
+                participant GUI as Web UI Form
+                participant PM as ProfileManager
+                participant GIT as Git Repository
+                participant DB as SQLite Adatbázis
+            
+                Note over U,GUI: Felhasználói Input
+                U->>GUI: Kitöltés (Config név, Domain, Admin Email)
+                U->>GUI: Szolgáltatások Kiválasztása (Nextcloud, GitLab...)
+                U->>GUI: Jelszó Stratégia (Universal/Generated)
+                GUI->>PM: create_profile(data)
+            
+                Note over PM,GIT: GitOps Műveletek
+                PM->>GIT: git checkout -b user-config-branch
+                PM->>PM: config.env Generálása
+                PM->>PM: services.env Generálása
+                PM->>GIT: git add .
+                PM->>GIT: git commit -m "New config"
+                PM->>GIT: git push origin user-config-branch
+            
+                Note over PM,DB: Adatbázis Perzisztencia
+                PM->>DB: INSERT Config Rekord (neve, branch, user_id)
+                DB-->>PM: Success
+                PM-->>GUI: Success
+                GUI-->>U: Átirányítás Dashboard-ra (Siker)
+        </div>
+    </div>
+</body>
+</html>

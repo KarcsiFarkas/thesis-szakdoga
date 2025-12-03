@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>phase5_traefik_ssl_sequence</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default', 
+            securityLevel: 'loose'
+        });
+    </script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #ffffff; 
+            color: #333333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container { 
+            text-align: center;
+            padding: 20px;
+            width: 90%;
+        }
+        h1 { margin-bottom: 20px; font-size: 1.5rem; opacity: 0.8; }
+        /* Center the diagram */
+        .mermaid { display: flex; justify-content: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>phase5_traefik_ssl_sequence</h1>
+        <div class="mermaid">
+            sequenceDiagram
+                autonumber
+                participant T as Traefik
+                participant D as Docker/NixOS
+                participant S as Szolgáltatás (Nextcloud)
+                participant LE as Let's Encrypt
+                participant C as Kliens Böngésző
+            
+                Note over T,D: Service Discovery Fázis
+                T->>D: Szolgáltatások Figyelése
+                D->>T: Szolgáltatás Detektálva: Nextcloud<br/>Labels: traefik.enable=true<br/>Host: nextcloud.DOMAIN
+                T->>T: Dinamikus Router Létrehozás:<br/>nextcloud@docker
+                T->>T: Middleware Lánc Létrehozás:<br/>authelia, https-redirect
+            
+                Note over T,LE: SSL Tanúsítvány Automatizálás
+                C->>T: HTTPS Kérés:<br/>https://nextcloud.example.com
+                T->>T: Ellenőrzés: Tanúsítvány Létezik?
+                T->>LE: Tanúsítvány Kérés<br/>HTTP-01 Challenge
+                LE->>T: GET /.well-known/acme-challenge/TOKEN
+                T-->>LE: Challenge Válasz
+                LE->>LE: Domain Tulajdonjog Validálás
+                LE-->>T: Tanúsítvány Kiadás + Privát Kulcs
+                T->>T: Tárolás acme.json-ban
+            
+                Note over T,S: Routing Aktiválás
+                T->>T: TLS Handshake Tanúsítvánnyal
+                T->>S: Kérés Továbbítás Backend-hez<br/>http://nextcloud:80
+                S-->>T: Válasz
+                T-->>C: HTTPS Válasz (Titkosítva)
+            
+                Note over T: Tanúsítvány Auto-Megújítás<br/>30 nappal lejárat előtt
+        </div>
+    </div>
+</body>
+</html>

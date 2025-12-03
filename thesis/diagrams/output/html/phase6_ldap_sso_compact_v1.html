@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fázis 6: LDAP & Authelia SSO</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#e1f5fe',
+                edgeLabelBackground: '#ffffff',
+                tertiaryColor: '#f1f8e9',
+                lineColor: '#333333',
+                fontFamily: 'Arial, sans-serif',
+                fontSize: '14px'
+            },
+            flowchart: {
+                htmlLabels: true,
+                curve: 'basis',
+                padding: 15
+            }
+        });
+    </script>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            max-width: 210mm;
+            margin: 0 auto;
+        }
+
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-top: 0;
+            font-size: 24px;
+        }
+
+        .diagram-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+            page-break-inside: avoid;
+        }
+
+        .mermaid {
+            max-width: 100%;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Fázis 6: LDAP & Authelia SSO</h1>
+
+        <div class="diagram-container">
+            <div class="mermaid">
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'13px'}}}%%
+flowchart TB
+    subgraph LDAP[LLDAP Setup]
+        direction LR
+        A[SQLite DB] --> B[Base DN<br/>dc=example,dc=com]
+        B --> C[Admin User]
+    end
+
+    subgraph PROV[User Provisioning]
+        direction TB
+        D[GraphQL API] --> E{Password?}
+        E -->|Universal| F[Same for All]
+        E -->|Generated| G[Unique<br/>Vaultwarden]
+        F --> H[LDAP User<br/>Created]
+        G --> H
+    end
+
+    subgraph AUTH[Authelia Config]
+        direction LR
+        I[LDAP Backend] --> J[Redis<br/>Session]
+        J --> K[2FA TOTP]
+    end
+
+    subgraph MIDDLEWARE[Traefik Integration]
+        direction TB
+        L[Service<br/>Request] --> M{Authenticated?}
+        M -->|No| N[Redirect<br/>Login]
+        M -->|Yes| O[Set Headers<br/>Remote-User]
+        O --> P[Forward to<br/>Service]
+    end
+
+    subgraph LOGIN[Login Flow]
+        direction LR
+        Q[Credentials] --> R[LDAP Bind]
+        R --> S[2FA Check?]
+        S --> T[Session<br/>Cookie]
+    end
+
+    C --> D
+    H --> I
+    K --> L
+    N --> Q
+    T --> M
+    P --> U([SSO Active])
+
+    style U fill:#d4edda,stroke:#28a745,stroke-width:2px
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>PaaS Infrastructure Automation Framework | BME-VIK Diplomaterv</p>
+        </div>
+    </div>
+</body>
+</html>

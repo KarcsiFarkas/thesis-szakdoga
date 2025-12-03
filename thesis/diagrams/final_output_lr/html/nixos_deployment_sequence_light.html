@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nixos_deployment_sequence</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default', 
+            securityLevel: 'loose'
+        });
+    </script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #ffffff; 
+            color: #333333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container { 
+            text-align: center;
+            padding: 20px;
+            width: 90%;
+        }
+        h1 { margin-bottom: 20px; font-size: 1.5rem; opacity: 0.8; }
+        /* Center the diagram */
+        .mermaid { display: flex; justify-content: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>nixos_deployment_sequence</h1>
+        <div class="mermaid">
+            sequenceDiagram
+                autonumber
+                participant User as Tesztelő
+                participant Flake as Nix Flakes
+                participant System as NixOS Host (WSL)
+                participant Service as Systemd Services
+            
+                Note over User, System: Fázis 1: Build és Aktiválás
+                User->>Flake: 1. nix flake check
+                User->>System: 2. nixos-rebuild build
+                User->>System: 3. nixos-rebuild switch (Activation)
+                
+                rect rgb(240, 255, 240)
+                    Note over System, Service: Fázis 2: Validáció
+                    System->>Service: Start Services (Traefik, LLDAP...)
+                    Service-->>User: 4. Status: Active (Running)
+                end
+            
+                rect rgb(255, 240, 240)
+                    Note over User, System: Fázis 3: Rollback Teszt
+                    User->>System: 5. switch --rollback
+                    System-->>User: Visszaállás kész (< 5mp)
+                end
+            
+                Note right of User: Eredmény (10x ciklus):<br/>✓ 10/10 Siker<br/>✓ Cache Hit: 92%
+        </div>
+    </div>
+</body>
+</html>

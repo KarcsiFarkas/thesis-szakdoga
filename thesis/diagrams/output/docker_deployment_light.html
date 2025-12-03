@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>docker_deployment</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default', 
+            securityLevel: 'loose'
+        });
+    </script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #ffffff; 
+            color: #333333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container { 
+            text-align: center;
+            padding: 20px;
+            width: 90%;
+        }
+        h1 { margin-bottom: 20px; font-size: 1.5rem; opacity: 0.8; }
+        /* Center the diagram */
+        .mermaid { display: flex; justify-content: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>docker_deployment</h1>
+        <div class="mermaid">
+            graph LR
+                %% Main Flow
+                Clean[1. Clean State<br/>docker-compose down -v] --> Script[2. Deploy Script<br/>deploy-docker-with-ldap...]
+                Script --> Health[3. Service<br/>Health Check]
+                Health --> Smoke[4. Smoke Test<br/>Nextcloud Login]
+                Smoke --> Loop{15x<br/>Ismétlés}
+                
+                Loop -- Siker --> Final([✓ EREDMÉNY: 100%])
+            
+                %% Details Container
+                subgraph Validation [Validációs Kritériumok]
+                    V1[Services: Healthy]
+                    V2[LDAP Auth: OK]
+                    V3[Traefik Routing: OK]
+                    V4[SSL: Let's Encrypt OK]
+                end
+                
+                Final -.-> V1 & V2 & V3 & V4
+            
+                %% Styling
+                style Final fill:#d4edda,stroke:#28a745,stroke-width:2px,font-weight:bold
+                style Clean fill:#e1f5fe,stroke:#0277bd
+                style Script fill:#e1f5fe,stroke:#0277bd
+                style Health fill:#fff9c4,stroke:#fbc02d
+                style Smoke fill:#fff9c4,stroke:#fbc02d
+        </div>
+    </div>
+</body>
+</html>

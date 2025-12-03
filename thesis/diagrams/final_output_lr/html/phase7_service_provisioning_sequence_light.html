@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>phase7_service_provisioning_sequence</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default', 
+            securityLevel: 'loose'
+        });
+    </script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #ffffff; 
+            color: #333333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container { 
+            text-align: center;
+            padding: 20px;
+            width: 90%;
+        }
+        h1 { margin-bottom: 20px; font-size: 1.5rem; opacity: 0.8; }
+        /* Center the diagram */
+        .mermaid { display: flex; justify-content: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>phase7_service_provisioning_sequence</h1>
+        <div class="mermaid">
+            sequenceDiagram
+                autonumber
+                participant S as Provision Script
+                participant NC as Nextcloud
+                participant GL as GitLab
+                participant JF as Jellyfin
+                participant VW as Vaultwarden
+            
+                Note over S,NC: Nextcloud Provisioning
+                S->>NC: Wait for Health
+                NC-->>S: Healthy
+                S->>NC: docker exec occ user:add
+                S->>NC: docker exec occ ldap:set-config
+                NC-->>S: User Created & LDAP Configured
+            
+                Note over S,GL: GitLab Provisioning
+                S->>GL: Wait for API
+                GL-->>S: Ready
+                S->>GL: POST /api/v4/users (Create User)
+                S->>GL: Configure LDAP (gitlab.rb sync)
+                GL-->>S: User Created
+            
+                Note over S,JF: Jellyfin Provisioning
+                S->>JF: Wait for Web UI
+                JF-->>S: Ready
+                S->>JF: POST /Users/New (Create User)
+                S->>JF: Enable LDAP Plugin
+                JF-->>S: User Created
+            
+                Note over S,VW: Vaultwarden Provisioning
+                S->>VW: Invite User (via Admin API)
+                VW-->>S: Invitation Sent/User Created
+                
+                S-->>S: All Services Provisioned
+        </div>
+    </div>
+</body>
+</html>

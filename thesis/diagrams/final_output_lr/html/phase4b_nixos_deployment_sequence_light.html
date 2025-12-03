@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>phase4b_nixos_deployment_sequence</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default', 
+            securityLevel: 'loose'
+        });
+    </script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #ffffff; 
+            color: #333333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container { 
+            text-align: center;
+            padding: 20px;
+            width: 90%;
+        }
+        h1 { margin-bottom: 20px; font-size: 1.5rem; opacity: 0.8; }
+        /* Center the diagram */
+        .mermaid { display: flex; justify-content: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>phase4b_nixos_deployment_sequence</h1>
+        <div class="mermaid">
+            sequenceDiagram
+                autonumber
+                participant U as Felhasználó
+                participant NIX as Nix Flake Check
+                participant BLD as Nix Build
+                participant CCH as Binary Cache
+                participant ACT as Activation Script
+                participant SYS as Systemd
+                participant SRV as Szolgáltatások
+            
+                Note over U,NIX: Konfiguráció & Validálás
+                U->>U: flake.nix Szerkesztés
+                U->>NIX: nix flake check
+                NIX-->>U: Syntax OK
+            
+                Note over U,BLD: System Build
+                U->>BLD: nixos-rebuild build
+                BLD->>BLD: Evaluate Config
+                BLD->>CCH: Query Cache (Derivations)
+                CCH-->>BLD: Cache Hit (92%)
+                BLD->>CCH: Download Paths
+                BLD->>BLD: Build Remaining
+                BLD-->>U: System Profile Created
+            
+                Note over U,ACT: Aktiválás & Switch
+                U->>ACT: nixos-rebuild switch
+                ACT->>ACT: Atomic Symlink Swap (/run/current-system)
+                ACT->>SYS: systemctl daemon-reload
+                ACT->>SYS: Restart Changed Services
+            
+                Note over SYS,SRV: Szolgáltatás Indítás
+                SYS->>SRV: Start Traefik
+                SYS->>SRV: Start LLDAP
+                SYS->>SRV: Start Authelia
+                SRV-->>SYS: Active
+                SYS-->>U: Deployment Successful
+        </div>
+    </div>
+</body>
+</html>

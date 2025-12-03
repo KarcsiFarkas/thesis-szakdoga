@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PaaS Diagram Index</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f2f5;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 4px solid #3498db;
+            padding-bottom: 15px;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+        @media (max-width: 1000px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        .column {
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .column-header {
+            background: #34495e;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .card {
+            background: #fff;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-color: #3498db;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .card h2 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 16px;
+            line-height: 1.4;
+            flex: 1;
+            margin-right: 10px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            background: #e74c3c;
+            color: white;
+            border-radius: 12px;
+            font-size: 11px;
+            white-space: nowrap;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .links a {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+        .links a:hover {
+            background: #2980b9;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <h1>PaaS Infrastructure Automation - Diagram Index</h1>
+    
+    <div class="main-container">
+        
+        <!-- Column 1: Infrastructure Diagrams -->
+        <div class="column">
+            <div class="column-header">Infrastructure & Process Diagrams</div>
+            <div class="grid">
+        <div class="card">
+            <div class="card-header">
+                <h2>phase1_user_onboarding_compact</h2>
+                <span class="badge">phase1</span>
+            </div>
+            <div class="links">
+                <a href="html/phase1_user_onboarding_compact_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase2_configuration_creation_compact</h2>
+                <span class="badge">phase2</span>
+            </div>
+            <div class="links">
+                <a href="html/phase2_configuration_creation_compact_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase3_vm_provisioning_compact</h2>
+                <span class="badge">phase3</span>
+            </div>
+            <div class="links">
+                <a href="html/phase3_vm_provisioning_compact_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase4a_docker_deployment_compact</h2>
+                <span class="badge">phase4a</span>
+            </div>
+            <div class="links">
+                <a href="html/phase4a_docker_deployment_compact_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase4b_nixos_deployment_compact</h2>
+                <span class="badge">phase4b</span>
+            </div>
+            <div class="links">
+                <a href="html/phase4b_nixos_deployment_compact_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase5_traefik_ssl_compact</h2>
+                <span class="badge">phase5</span>
+            </div>
+            <div class="links">
+                <a href="html/phase5_traefik_ssl_compact_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase6_ldap_sso_compact</h2>
+                <span class="badge">phase6</span>
+            </div>
+            <div class="links">
+                <a href="html/phase6_ldap_sso_compact_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase7_service_provisioning_compact</h2>
+                <span class="badge">phase7</span>
+            </div>
+            <div class="links">
+                <a href="html/phase7_service_provisioning_compact_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase8_user_access_sso_compact</h2>
+                <span class="badge">phase8</span>
+            </div>
+            <div class="links">
+                <a href="html/phase8_user_access_sso_compact_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase9_operational_monitoring_compact</h2>
+                <span class="badge">phase9</span>
+            </div>
+            <div class="links">
+                <a href="html/phase9_operational_monitoring_compact_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>summary_complete_journey_compact</h2>
+                <span class="badge">Summary</span>
+            </div>
+            <div class="links">
+                <a href="html/summary_complete_journey_compact_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+            </div>
+        </div>
+
+        <!-- Column 2: Sequence Diagrams -->
+        <div class="column">
+            <div class="column-header">Sequence Diagrams</div>
+            <div class="grid">
+        <div class="card">
+            <div class="card-header">
+                <h2>complete_system_flow_sequence</h2>
+                <span class="badge">Complete Flow</span>
+            </div>
+            <div class="links">
+                <a href="html/complete_system_flow_sequence_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>docker_deployment_sequence</h2>
+                <span class="badge">Misc</span>
+            </div>
+            <div class="links">
+                <a href="html/docker_deployment_sequence_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>nixos_deployment_sequence</h2>
+                <span class="badge">Misc</span>
+            </div>
+            <div class="links">
+                <a href="html/nixos_deployment_sequence_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase1_user_onboarding_sequence</h2>
+                <span class="badge">phase1</span>
+            </div>
+            <div class="links">
+                <a href="html/phase1_user_onboarding_sequence_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase2_configuration_creation_sequence</h2>
+                <span class="badge">phase2</span>
+            </div>
+            <div class="links">
+                <a href="html/phase2_configuration_creation_sequence_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase3_vm_provisioning_sequence</h2>
+                <span class="badge">phase3</span>
+            </div>
+            <div class="links">
+                <a href="html/phase3_vm_provisioning_sequence_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase4a_docker_deployment_sequence</h2>
+                <span class="badge">phase4a</span>
+            </div>
+            <div class="links">
+                <a href="html/phase4a_docker_deployment_sequence_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase4b_nixos_deployment_sequence</h2>
+                <span class="badge">phase4b</span>
+            </div>
+            <div class="links">
+                <a href="html/phase4b_nixos_deployment_sequence_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase5_traefik_ssl_sequence</h2>
+                <span class="badge">phase5</span>
+            </div>
+            <div class="links">
+                <a href="html/phase5_traefik_ssl_sequence_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase6_ldap_sso_sequence</h2>
+                <span class="badge">phase6</span>
+            </div>
+            <div class="links">
+                <a href="html/phase6_ldap_sso_sequence_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase7_service_provisioning_sequence</h2>
+                <span class="badge">phase7</span>
+            </div>
+            <div class="links">
+                <a href="html/phase7_service_provisioning_sequence_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase8_user_access_sso_sequence</h2>
+                <span class="badge">phase8</span>
+            </div>
+            <div class="links">
+                <a href="html/phase8_user_access_sso_sequence_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>phase9_operational_monitoring_sequence</h2>
+                <span class="badge">phase9</span>
+            </div>
+            <div class="links">
+                <a href="html/phase9_operational_monitoring_sequence_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>vm_provisioning_sequence</h2>
+                <span class="badge">Misc</span>
+            </div>
+            <div class="links">
+                <a href="html/vm_provisioning_sequence_light.html" target="_blank">View Diagram</a>
+            </div>
+        </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Generated: <script>document.write(new Date().toLocaleString('en-US'))</script></p>
+        <p>BME-VIK Thesis Project</p>
+    </div>
+</body>
+</html>

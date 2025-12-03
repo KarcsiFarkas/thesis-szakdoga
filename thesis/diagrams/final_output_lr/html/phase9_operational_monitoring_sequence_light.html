@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>phase9_operational_monitoring_sequence</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default', 
+            securityLevel: 'loose'
+        });
+    </script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #ffffff; 
+            color: #333333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container { 
+            text-align: center;
+            padding: 20px;
+            width: 90%;
+        }
+        h1 { margin-bottom: 20px; font-size: 1.5rem; opacity: 0.8; }
+        /* Center the diagram */
+        .mermaid { display: flex; justify-content: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>phase9_operational_monitoring_sequence</h1>
+        <div class="mermaid">
+            sequenceDiagram
+                autonumber
+                participant C as Cron Daemon
+                participant M as Status Script
+                participant S as Services (Docker/Systemd)
+                participant A as Alert System
+                participant B as Backup Script
+                participant R as Restic
+                participant SRV as Backup Server
+            
+                Note over C,A: Monitoring Loop (Every 5 min)
+                C->>M: Run status.sh
+                M->>S: Check Health (docker ps / systemctl)
+                S-->>M: Status Report
+                alt Any Service Unhealthy?
+                    M->>A: Send Alert (Email/Slack)
+                else All Healthy
+                    M->>M: Log Status OK
+                end
+            
+                Note over C,SRV: Daily Backup (2:00 AM)
+                C->>B: Run backup.sh
+                B->>SRV: Wake-on-LAN (Magic Packet)
+                SRV-->>B: Server Awake
+                B->>R: Start Backup (Encrypted)
+                R->>SRV: Transfer Data (Deduplicated)
+                R-->>B: Backup Complete
+                B->>R: Verify Integrity
+                R-->>B: Integrity OK
+                B->>R: Prune Old Backups (>90 days)
+                B-->>C: Job Done
+        </div>
+    </div>
+</body>
+</html>

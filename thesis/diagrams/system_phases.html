@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PaaS System Phases - Detailed Diagrams</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#e1f5fe',
+                edgeLabelBackground: '#ffffff',
+                tertiaryColor: '#f1f8e9',
+                lineColor: '#333333',
+                fontFamily: 'Arial'
+            }
+        });
+    </script>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card {
+            background: white;
+            padding: 30px;
+            margin-bottom: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 40px; }
+        h2 { color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .diagram-note { font-size: 0.9em; color: #666; margin-bottom: 20px; font-style: italic; }
+        .phase-number {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>PaaS Infrastructure Automation - System Phases</h1>
+
+    <!-- PHASE 1: User Onboarding -->
+    <div class="card">
+        <h2><span class="phase-number">Phase 1</span>User Onboarding & Authentication</h2>
+        <div class="diagram-note">User registration, login, and initial dashboard access.</div>
+        <div class="mermaid">
+            sequenceDiagram
+                autonumber
+                participant U as User
+                participant F as Flask App
+                participant DB as SQLite Database
+                participant S as Session Manager
+
+                Note over U,DB: Registration Path (New User)
+                U->>F: POST /register
+                F->>F: Validate Form Data
+                F->>F: Hash Password (bcrypt)
+                F->>DB: INSERT User Record
+                DB-->>F: User Created (ID)
+                F-->>U: Redirect to /login
+
+                Note over U,DB: Login Path (Existing User)
+                U->>F: POST /login
+                F->>DB: SELECT User by Username
+                DB-->>F: User Record + Hash
+                F->>F: Verify Password Hash
+                F->>S: Create Session Cookie
+                S-->>F: Session Token
+                F-->>U: Set Cookie & Redirect to /dashboard
+
+                Note over U: Result: Authenticated User<br/>Access to Dashboard
+        </div>
+    </div>
+
+    <!-- PHASE 2: Configuration Creation -->
+    <div class="card">
+        <h2><span class="phase-number">Phase 2</span>Configuration Creation & Git Management</h2>
+        <div class="diagram-note">Service selection and configuration file generation with Git version control.</div>
+        <div class="mermaid">
+            flowchart TD
+                A[User: Create New Config] --> B[Service Selection Form]
+
+                subgraph Form [Configuration Input]
+                    B --> C[Select Services:<br/>☑ Nextcloud<br/>☑ GitLab<br/>☑ Jellyfin]
+                    C --> D[Enter Settings:<br/>- Config Name<br/>- Domain<br/>- Admin Email]
+                    D --> E{Password Strategy}
+                    E -->|Universal| F[Single Password]
+                    E -->|Generated| G[Unique Passwords]
+                end
+
+                F --> H[ProfileManager.create_profile]
+                G --> H
+
+                subgraph GitOps [Git Operations]
+                    H --> I[Create Branch:<br/>username-configname]
+                    I --> J[Generate config.env:<br/>DOMAIN, EMAIL, etc.]
+                    J --> K[Generate services.env:<br/>NEXTCLOUD_ENABLED=true]
+                    K --> L[Git Commit & Push]
+                end
+
+                subgraph Database [Persistence]
+                    L --> M[Save to SQLite:<br/>Configuration Record]
+                    M --> N[Link to User Account]
+                end
+
+                N --> O([Success: Config Saved<br/>Redirect to Dashboard])
+
+                style O fill:#d4edda,stroke:#28a745,stroke-width:2px
+        </div>
+    </div>
+
+    <!-- PHASE 3: VM Provisioning -->
+    <div class="card">
+        <h2><span class="phase-number">Phase 3</span>Infrastructure Provisioning (Optional VM)</h2>
+        <div class="diagram-note">Automated VM creation using Terraform and Proxmox API.</div>
+        <div class="mermaid">
+            graph TB
+                subgraph Init [Initialization]
+                    A[User: Deploy to New VM] --> B[Load vm_specs.yaml]
+                    B --> C[Proxmox API Client Init]
+                    C --> D[Terraform Init:<br/>bpg/proxmox Provider]
+                end
+
+                subgraph Plan [Planning Phase]
+                    D --> E[Terraform Plan:<br/>Read Configuration]
+                    E --> F{Plan Valid?}
+                    F -->|No| G[Show Errors]
+                    G --> H[User Fixes Config]
+                    H --> E
+                end
+
+                subgraph Apply [Infrastructure Creation]
+                    F -->|Yes| I[Terraform Apply]
+                    I --> J[Proxmox: Clone Template<br/>ID: 9000 Ubuntu 24.04]
+                    J --> K[Configure VM:<br/>- CPU: 4 cores<br/>- RAM: 8GB<br/>- Disk: 100GB]
+                    K --> L[Attach Cloud-init Drive]
+                    L --> M[Start VM]
+                end
+
+                subgraph Boot [VM Boot Process]
+                    M --> N[Cloud-init Execution]
+                    N --> O[Network Config:<br/>DHCP/Static IP]
+                    O --> P[User Creation<br/>SSH Key Install]
+                    P --> Q[Package Installation]
+                    Q --> R[QEMU Guest Agent Start]
+                end
+
+                subgraph Validation [Readiness Check]
+                    R --> S{SSH Available?}
+                    S -->|Timeout| T[FAIL: Report Error]
+                    S -->|Success| U[VM Ready]
+                    U --> V{Run Ansible?}
+                    V -->|Yes| W[Ansible Playbook:<br/>Install Docker]
+                    V -->|No| X
+                    W --> X([VM Provisioned<br/>Ready for Services])
+                end
+
+                T --> Z[Return to Dashboard]
+
+                style X fill:#d4edda,stroke:#28a745,stroke-width:2px
+                style T fill:#f8d7da,stroke:#dc3545,stroke-width:2px
+        </div>
+    </div>
+
+    <!-- PHASE 4A: Docker Deployment -->
+    <div class="card">
+        <h2><span class="phase-number">Phase 4A</span>Docker Compose Service Deployment</h2>
+        <div class="diagram-note">Container orchestration with profile-based service activation.</div>
+        <div class="mermaid">
+            sequenceDiagram
+                autonumber
+                participant U as User
+                participant S as Deploy Script
+                participant E as Environment
+                participant D as Docker Engine
+                participant T as Traefik
+                participant A as Applications
+
+                Note over U,A: Preparation
+                U->>S: Execute deploy-docker.sh
+                S->>E: Load config.env
+                S->>E: Load services.env
+                S->>E: Load profiles.env<br/>COMPOSE_PROFILES=core,collaboration
+
+                Note over D,A: Image Preparation
+                S->>D: docker-compose pull
+                D-->>S: Images Downloaded
+
+                Note over D,A: Network & Volume Setup
+                S->>D: Create Network: traefik_public
+                S->>D: Create Network: backend
+                S->>D: Create Volumes: nextcloud_data, etc.
+
+                Note over D,T: Core Services Startup
+                S->>D: Start Traefik (Profile: core)
+                D->>T: Container Started
+                T-->>D: Health Check: Healthy
+
+                S->>D: Start LLDAP (Profile: core)
+                S->>D: Start Redis (Profile: core)
+                S->>D: Start Authelia (Profile: authentication)
+
+                Note over D,A: Application Services
+                S->>D: Start Nextcloud (Profile: collaboration)
+                D->>A: Nextcloud + PostgreSQL
+                A-->>D: Health Check: Healthy
+
+                Note over U: Final Validation
+                D-->>S: All Containers Healthy
+                S->>S: Service Health Checks (curl)
+                S-->>U: ✓ Deployment Complete<br/>Services Ready
+        </div>
+    </div>
+
+    <!-- PHASE 4B: NixOS Deployment -->
+    <div class="card">
+        <h2><span class="phase-number">Phase 4B</span>NixOS Declarative Deployment</h2>
+        <div class="diagram-note">Declarative system configuration with atomic activation and rollback capability.</div>
+        <div class="mermaid">
+            flowchart TD
+                subgraph Input [Configuration Input]
+                    A[User: Deploy with NixOS] --> B[Load flake.nix]
+                    B --> C[Import Service Modules:<br/>traefik.nix, lldap.nix,<br/>authelia.nix, etc.]
+                    C --> D[Load Host Config:<br/>hosts/wsl/default.nix]
+                end
+
+                subgraph Validation [Flake Validation]
+                    D --> E[nix flake check]
+                    E --> F{Syntax Valid?}
+                    F -->|No| G[Show Build Errors]
+                    G --> H[User Fixes Configuration]
+                    H --> E
+                end
+
+                subgraph Build [System Build]
+                    F -->|Yes| I[nixos-rebuild build]
+                    I --> J[Evaluate Configuration]
+                    J --> K[Build Derivations]
+                    K --> L{Binary Cache Hit?}
+                    L -->|Yes 92%| M[Download from Cache]
+                    L -->|No 8%| N[Build from Source]
+                    M --> O[System Profile Created]
+                    N --> O
+                end
+
+                subgraph Activation [System Activation]
+                    O --> P[nixos-rebuild switch]
+                    P --> Q[Atomic Symlink Switch:<br/>/run/current-system]
+                    Q --> R[Systemd Service Reload]
+                    R --> S[Start/Restart Services]
+                end
+
+                subgraph Services [Service Startup]
+                    S --> T[traefik.service: Active]
+                    S --> U[lldap.service: Active]
+                    S --> V[authelia.service: Active]
+                    S --> W[homer.service: Active]
+                end
+
+                subgraph Check [Health Validation]
+                    T & U & V & W --> X{All Active?}
+                    X -->|No| Y{Rollback?}
+                    Y -->|Yes| Z[nixos-rebuild switch --rollback]
+                    Z --> AA[Previous Generation Restored]
+                    X -->|Yes| AB([✓ NixOS Deployment Complete<br/>Services Running])
+                end
+
+                Y -->|No| AC[Show Service Logs]
+
+                style AB fill:#d4edda,stroke:#28a745,stroke-width:2px
+                style AA fill:#fff3cd,stroke:#ffc107,stroke-width:2px
+        </div>
+    </div>
+
+    <!-- PHASE 5: Traefik Configuration -->
+    <div class="card">
+        <h2><span class="phase-number">Phase 5</span>Traefik Service Discovery & SSL Automation</h2>
+        <div class="diagram-note">Automatic routing configuration and Let's Encrypt certificate management.</div>
+        <div class="mermaid">
+            sequenceDiagram
+                autonumber
+                participant T as Traefik
+                participant D as Docker/NixOS
+                participant S as Service (Nextcloud)
+                participant LE as Let's Encrypt
+                participant C as Client Browser
+
+                Note over T,D: Service Discovery Phase
+                T->>D: Watch for Services
+                D->>T: Service Detected: Nextcloud<br/>Labels: traefik.enable=true<br/>Host: nextcloud.DOMAIN
+                T->>T: Create Dynamic Router:<br/>nextcloud@docker
+                T->>T: Create Middleware Chain:<br/>authelia, https-redirect
+
+                Note over T,LE: SSL Certificate Automation
+                C->>T: HTTPS Request:<br/>https://nextcloud.example.com
+                T->>T: Check: Certificate Exists?
+                T->>LE: Request Certificate<br/>HTTP-01 Challenge
+                LE->>T: GET /.well-known/acme-challenge/TOKEN
+                T-->>LE: Challenge Response
+                LE->>LE: Validate Domain Ownership
+                LE-->>T: Issue Certificate + Private Key
+                T->>T: Store in acme.json
+
+                Note over T,S: Routing Activation
+                T->>T: TLS Handshake with Certificate
+                T->>S: Forward Request to Backend<br/>http://nextcloud:80
+                S-->>T: Response
+                T-->>C: HTTPS Response (Encrypted)
+
+                Note over T: Certificate Auto-Renewal<br/>30 days before expiry
+        </div>
+    </div>
+
+    <!-- PHASE 6: LDAP & SSO Integration -->
+    <div class="card">
+        <h2><span class="phase-number">Phase 6</span>LDAP & Authelia SSO Integration</h2>
+        <div class="diagram-note">Centralized authentication with Single Sign-On across all services.</div>
+        <div class="mermaid">
+            flowchart TB
+                subgraph Setup [LDAP Setup]
+                    A[LLDAP Container Start] --> B[Initialize Database:<br/>users.db SQLite]
+                    B --> C[Create Base DN:<br/>dc=example,dc=com]
+                    C --> D[Create Admin User:<br/>cn=admin]
+                end
+
+                subgraph UserProv [User Provisioning]
+                    D --> E[Provision Script:<br/>provision_users.py]
+                    E --> F[GraphQL API Call:<br/>createUser Mutation]
+                    F --> G{Password Type?}
+                    G -->|Universal| H[Set Same Password<br/>All Services]
+                    G -->|Generated| I[Generate Unique Password<br/>Store in Vaultwarden]
+                    H --> J[User in LDAP:<br/>uid=username,ou=people]
+                    I --> J
+                end
+
+                subgraph Authelia [Authelia Configuration]
+                    J --> K[Authelia Reads Config:<br/>authentication_backend.ldap]
+                    K --> L[Connect to LLDAP:<br/>ldap://lldap:3890]
+                    L --> M[Configure Session:<br/>Redis Storage]
+                    M --> N[Setup 2FA:<br/>TOTP Support]
+                end
+
+                subgraph Integration [Service Integration]
+                    N --> O[Traefik Middleware:<br/>forwardAuth to Authelia]
+                    O --> P[Protected Routes:<br/>Nextcloud, GitLab, etc.]
+                    P --> Q{User Authenticated?}
+                    Q -->|No| R[Redirect to Login:<br/>auth.DOMAIN]
+                    Q -->|Yes| S[Set Headers:<br/>Remote-User, Remote-Email]
+                    S --> T[Forward to Service<br/>with Auth Context]
+                end
+
+                R --> U[User Login Form]
+                U --> V[LDAP Bind:<br/>Validate Credentials]
+                V --> W{2FA Enabled?}
+                W -->|Yes| X[Prompt TOTP Code]
+                W -->|No| Y
+                X --> Y[Create Session Cookie]
+                Y --> Z([SSO Active:<br/>Access All Services])
+
+                style Z fill:#d4edda,stroke:#28a745,stroke-width:2px
+        </div>
+    </div>
+
+    <!-- PHASE 7: Service-Specific Configuration -->
+    <div class="card">
+        <h2><span class="phase-number">Phase 7</span>Service-Specific Post-Deployment Configuration</h2>
+        <div class="diagram-note">Per-service user provisioning and LDAP integration setup.</div>
+        <div class="mermaid">
+            graph LR
+                subgraph Core [Core User: LDAP]
+                    A[User in LLDAP:<br/>username, email, password]
+                end
+
+                subgraph Nextcloud [Nextcloud Provisioning]
+                    A --> B[Wait for Container Healthy]
+                    B --> C[docker exec nextcloud<br/>occ user:add]
+                    C --> D[Configure LDAP App:<br/>occ ldap:set-config]
+                    D --> E[LDAP Mapping:<br/>uid → username<br/>mail → email]
+                    E --> F[✓ Nextcloud User Ready]
+                end
+
+                subgraph GitLab [GitLab Provisioning]
+                    A --> G[Wait for API Ready]
+                    G --> H[POST /api/v4/users]
+                    H --> I[Payload:<br/>username, email,<br/>password, skip_confirmation]
+                    I --> J[Configure LDAP:<br/>gitlab.rb settings]
+                    J --> K[✓ GitLab User Ready]
+                end
+
+                subgraph Jellyfin [Jellyfin Provisioning]
+                    A --> L[Wait for Web UI Ready]
+                    L --> M[POST /Users/New]
+                    M --> N[Set Username & Password]
+                    N --> O[Enable LDAP Plugin<br/>Optional]
+                    O --> P[✓ Jellyfin User Ready]
+                end
+
+                F & K & P --> Q([All Services Provisioned<br/>User Can Login])
+
+                style Q fill:#d4edda,stroke:#28a745,stroke-width:2px
+        </div>
+    </div>
+
+    <!-- PHASE 8: User Access Flow -->
+    <div class="card">
+        <h2><span class="phase-number">Phase 8</span>End User Access with SSO</h2>
+        <div class="diagram-note">Complete authentication flow from browser to service access.</div>
+        <div class="mermaid">
+            sequenceDiagram
+                autonumber
+                participant U as User Browser
+                participant T as Traefik
+                participant A as Authelia
+                participant L as LLDAP
+                participant R as Redis
+                participant N as Nextcloud
+
+                Note over U,N: First Service Access (No Session)
+                U->>T: GET https://nextcloud.example.com
+                T->>A: Forward Auth Request<br/>/api/verify
+                A->>R: Check Session Cookie
+                R-->>A: No Valid Session
+                A-->>T: 401 Unauthorized
+                T-->>U: 302 Redirect to:<br/>https://auth.example.com
+
+                Note over U,L: User Authentication
+                U->>A: GET /login
+                A-->>U: Login Form
+                U->>A: POST /login<br/>username + password
+                A->>L: LDAP Bind Request<br/>uid=username,ou=people
+                L->>L: Verify Password Hash
+                L-->>A: Authentication Success
+
+                Note over A,R: Optional 2FA
+                A->>A: Check 2FA Enabled?
+                A-->>U: Prompt TOTP Code
+                U->>A: Submit TOTP
+                A->>A: Validate TOTP Secret
+
+                Note over A,R: Session Creation
+                A->>R: Create Session<br/>session_id: random_uuid
+                R-->>A: Session Stored
+                A-->>U: Set-Cookie: authelia_session<br/>302 Redirect to Nextcloud
+
+                Note over U,N: Access Granted
+                U->>T: GET https://nextcloud.example.com<br/>Cookie: authelia_session
+                T->>A: Forward Auth Request
+                A->>R: Validate Session
+                R-->>A: Session Valid + User Data
+                A-->>T: 200 OK + Headers:<br/>Remote-User: username<br/>Remote-Email: user@example.com
+                T->>N: Forward Request with Headers
+                N->>N: Pre-authenticated User
+                N-->>T: Response: Nextcloud UI
+                T-->>U: Response (User Logged In)
+
+                Note over U,N: Subsequent Service Access (SSO)
+                U->>T: GET https://gitlab.example.com<br/>Cookie: authelia_session
+                Note over A: Same session cookie works!
+                T->>A: Forward Auth Request
+                A-->>T: 200 OK + Headers
+                T-->>U: Access GitLab (No Re-login)
+        </div>
+    </div>
+
+    <!-- PHASE 9: Operational State -->
+    <div class="card">
+        <h2><span class="phase-number">Phase 9</span>Operational State & Monitoring</h2>
+        <div class="diagram-note">Fully operational system with health monitoring and automated checks.</div>
+        <div class="mermaid">
+            flowchart TD
+                subgraph Running [Running Services]
+                    A[Traefik: Port 80, 443, 8080]
+                    B[LLDAP: Port 3890, 17170]
+                    C[Authelia: Port 9091]
+                    D[Redis: Port 6379]
+                    E[Nextcloud: Port 80 via Traefik]
+                    F[GitLab: Port 80, 22 via Traefik]
+                    G[Jellyfin: Port 8096]
+                    H[Vaultwarden: Port 80 via Traefik]
+                end
+
+                subgraph Monitor [Health Monitoring]
+                    A & B & C & D & E & F & G & H --> I[status.sh Script]
+                    I --> J{Docker Mode?}
+                    I --> K{NixOS Mode?}
+                    J -->|Yes| L[docker ps --filter health=healthy]
+                    K -->|Yes| M[systemctl status <service>]
+                    L --> N[Health Report]
+                    M --> N
+                end
+
+                subgraph Auto [Automated Checks]
+                    N --> O[Cron Job: Every 5 min]
+                    O --> P{All Healthy?}
+                    P -->|No| Q[Send Alert:<br/>Service Down Notification]
+                    P -->|Yes| R[Log: System OK]
+                end
+
+                subgraph Backup [Backup Automation]
+                    R --> S[Daily Backup Script:<br/>backup-vaultwarden.sh]
+                    S --> T[Wake-on-LAN: Backup Server]
+                    T --> U[Restic Backup:<br/>Encrypted + Deduplicated]
+                    U --> V[Verify Backup Integrity]
+                    V --> W[Backup Complete]
+                end
+
+                subgraph Access [User Access Patterns]
+                    W --> X[Users Access Services:<br/>SSO Seamless Login]
+                    X --> Y[Session Management:<br/>Redis Tracks Active Sessions]
+                    Y --> Z[Certificate Renewal:<br/>Traefik Auto-Renews<br/>30 days before expiry]
+                end
+
+                Z --> AA([System Fully Operational<br/>Continuous Service Delivery])
+
+                style AA fill:#d4edda,stroke:#28a745,stroke-width:3px
+        </div>
+    </div>
+
+    <!-- Complete Journey Summary -->
+    <div class="card">
+        <h2><span class="phase-number">Summary</span>Complete User Journey: Registration to Service Access</h2>
+        <div class="diagram-note">High-level overview of the entire process flow across all phases.</div>
+        <div class="mermaid">
+            graph TB
+                P1[Phase 1:<br/>User Registration & Login] --> P2[Phase 2:<br/>Configuration Creation<br/>Git Branch + Config Files]
+
+                P2 --> P3{Infrastructure<br/>Needed?}
+                P3 -->|Yes| P3A[Phase 3:<br/>VM Provisioning<br/>Terraform + Proxmox]
+                P3 -->|No| P4
+                P3A --> P4
+
+                P4{Deployment<br/>Type?}
+                P4 -->|Docker| P4A[Phase 4A:<br/>Docker Compose<br/>Container Orchestration]
+                P4 -->|NixOS| P4B[Phase 4B:<br/>NixOS Rebuild<br/>Declarative System]
+
+                P4A --> P5
+                P4B --> P5
+
+                P5[Phase 5:<br/>Traefik Discovery<br/>SSL Automation] --> P6[Phase 6:<br/>LDAP + Authelia<br/>SSO Setup]
+
+                P6 --> P7[Phase 7:<br/>Service Configuration<br/>User Provisioning]
+
+                P7 --> P8[Phase 8:<br/>User Access<br/>SSO Login Flow]
+
+                P8 --> P9[Phase 9:<br/>Operational State<br/>Monitoring + Backups]
+
+                P9 --> Final([✓ Working PaaS System<br/>Services Available<br/>Users Authenticated])
+
+                style Final fill:#d4edda,stroke:#28a745,stroke-width:3px
+                style P1 fill:#e3f2fd,stroke:#1976d2
+                style P2 fill:#fff3e0,stroke:#f57c00
+                style P3A fill:#e1bee7,stroke:#7b1fa2
+                style P4A fill:#bbdefb,stroke:#1976d2
+                style P4B fill:#c5e1a5,stroke:#558b2f
+                style P5 fill:#ffecb3,stroke:#ffa000
+                style P6 fill:#ffccbc,stroke:#e64a19
+                style P7 fill:#d1c4e9,stroke:#5e35b1
+                style P8 fill:#b2dfdb,stroke:#00897b
+                style P9 fill:#c8e6c9,stroke:#43a047
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

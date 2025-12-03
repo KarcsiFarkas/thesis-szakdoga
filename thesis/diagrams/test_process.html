@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Environment Diagrams</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#e1f5fe',
+                edgeLabelBackground: '#ffffff',
+                tertiaryColor: '#f1f8e9',
+                lineColor: '#333333',
+                fontFamily: 'Arial'
+            }
+        });
+    </script>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .card { 
+            background: white; 
+            padding: 30px; 
+            margin-bottom: 40px; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+        }
+        h2 { color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .diagram-note { font-size: 0.9em; color: #666; margin-bottom: 20px; font-style: italic; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <div class="card">
+        <h2>1.1.1. VM Provisioning Folyamat</h2>
+        <div class="diagram-note">Process flow for Terraform & Proxmox integration test.</div>
+        <div class="mermaid">
+            flowchart TD
+                subgraph Setup [Előkészítés]
+                    A[Terraform Config<br/>2 vCPU, 4GB RAM] --> B[Terraform Plan]
+                end
+
+                subgraph Execution [Végrehajtás]
+                    B --> C[Terraform Apply]
+                    C --> D[VM Boot & Cloud-init]
+                    D -- Wait 60s --> E{SSH Check}
+                end
+
+                subgraph Results [Eredmények & Validáció]
+                    E -- Success --> F[20x Loop Cycle]
+                    F --> G[Result: 20/20 Success]
+                    
+                    style G fill:#d4edda,stroke:#28a745,stroke-width:2px
+                end
+
+                subgraph Issues [Javított Hibák]
+                    H[Hiba #1: Cloud-init Timeout] -.-> I[Fix: Timeout 60s]
+                    J[Hiba #2: QEMU Agent delay] -.-> K[Fix: Systemd dependency]
+                    
+                    style H fill:#f8d7da,stroke:#dc3545
+                    style J fill:#f8d7da,stroke:#dc3545
+                end
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>1.1.2. A) Docker Deployment Pipeline</h2>
+        <div class="diagram-note">Deployment validation for standard Docker stack.</div>
+        <div class="mermaid">
+            graph LR
+                A[Start: Clean State<br/>docker-compose down] --> B[Run Deploy Script]
+                B --> C[Service Health Check]
+                
+                subgraph Tests [Validációs Lépések]
+                    C --> D[LDAP Auth Test]
+                    D --> E[Traefik Routing Check]
+                end
+
+                subgraph Outcome [Végeredmény]
+                    E --> F[15x Ismétlés]
+                    F --> G[✓ SIKERES<br/>100% Success Rate]
+                    
+                    style G fill:#d4edda,stroke:#28a745,stroke-width:2px
+                end
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>1.1.2. B) NixOS Deployment</h2>
+        <div class="diagram-note">Deployment and Rollback validation for NixOS.</div>
+        <div class="mermaid">
+            sequenceDiagram
+                autonumber
+                participant User
+                participant Nix as Nix Flakes
+                participant System as NixOS System
+                participant Service as Services
+                
+                Note over User, System: Phase 1: Build & Activation
+                User->>Nix: nix flake check
+                User->>System: nixos-rebuild build
+                User->>System: nixos-rebuild switch (Activation)
+                
+                Note over System, Service: Phase 2: Validation
+                System->>Service: Start Services (Traefik/LLDAP)
+                Service-->>User: Status: Active (Running)
+                
+                Note over User, System: Phase 3: Rollback Test
+                User->>System: Switch --rollback
+                System-->>User: Rollback Complete (<5s)
+                
+                Note right of System: Result: 10/10 Success<br/>Binary Cache Hit: 92%
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>
