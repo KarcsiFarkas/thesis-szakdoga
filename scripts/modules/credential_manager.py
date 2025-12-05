@@ -36,11 +36,16 @@ def generate_credentials(tenant_name: str, global_password: Optional[str] = None
     """
     utils.log_info(f"🔐 Generating credentials for tenant: {tenant_name}")
 
-    # Build credential generation script path
-    cred_script = constants.ROOT_DIR / "tools" / "generate-credentials.sh"
+    # Build credential generation script path (prefer Python version)
+    cred_script_py = constants.ROOT_DIR / "tools" / "generate-credentials.py"
+    cred_script_sh = constants.ROOT_DIR / "tools" / "generate-credentials.sh"
 
-    if not cred_script.exists():
-        raise CredentialManagerError(f"Credential generation script not found: {cred_script}")
+    if cred_script_py.exists():
+        cred_script = cred_script_py
+    elif cred_script_sh.exists():
+        cred_script = cred_script_sh
+    else:
+        raise CredentialManagerError(f"Credential generation script not found: {cred_script_py} or {cred_script_sh}")
 
     # Prepare environment
     env = os.environ.copy()
@@ -49,10 +54,15 @@ def generate_credentials(tenant_name: str, global_password: Optional[str] = None
 
     # Execute credential generation script
     try:
+        # Use python3 explicitly for .py scripts
+        if cred_script.suffix == '.py':
+            cmd = ['python3', str(cred_script), tenant_name]
+        else:
+            cmd = [str(cred_script), tenant_name]
+
         result = subprocess.run(
-            [str(cred_script), tenant_name],
+            cmd,
             env=env,
-            stdin=subprocess.DEVNULL,  # Don't inherit stdin
             capture_output=True,
             text=True,
             check=True

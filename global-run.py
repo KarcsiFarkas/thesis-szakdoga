@@ -34,7 +34,7 @@ from scripts.modules import (
 
 
 class DeploymentMetrics:
-    def __init__(self, tenant: str, enabled: bool):
+    def __init__(self, tenant: str, enabled: bool, log_path: str | None = None):
         self.enabled = enabled
         self.tenant = tenant
         self.start_time = time.perf_counter()
@@ -55,7 +55,7 @@ class DeploymentMetrics:
         if self.enabled:
             self.metrics_dir.mkdir(parents=True, exist_ok=True)
         self._step_starts: dict[str, float] = {}
-        self._log_path: Path | None = None
+        self._log_path: Path | None = Path(log_path) if log_path else None
 
     def add_info(self, key: str, value: object) -> None:
         if not self.enabled:
@@ -115,11 +115,20 @@ class DeploymentMetrics:
         if error:
             self.data["error"] = str(error)
 
-        timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
-        self._log_path = self.metrics_dir / f"metrics-{timestamp}.json"
+        if not self._log_path:
+            timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+            self._log_path = self.metrics_dir / f"metrics-{timestamp}.json"
+
+        # Ensure the parent directory exists
+        self._log_path.parent.mkdir(parents=True, exist_ok=True)
+
         with open(self._log_path, "w", encoding="utf-8") as handle:
             json.dump(self.data, handle, indent=2)
-        utils.log_info(f"📊 Metrics saved to {self._log_path}")
+        
+        log_file_path = self._log_path.resolve()
+        utils.log_info(f"📊 Metrics saved to {log_file_path}")
+        print(f"Log file saved to: {log_file_path}")
+
 
 def section(title: str) -> None:
     print()
@@ -266,7 +275,7 @@ def deploy_nix_runtime(
     utils.log_success("Nix deployment process finished via nix flake fallback. Reboot the VM to apply if needed.")
 
 
-def main(tenant_name: str, start_from_step: int = 1, *, metrics_enabled: bool = False, skip_credentials: bool = False) -> None:
+def main(tenant_name: str, start_from_step: int = 1, *, metrics_enabled: bool = False, skip_credentials: bool = False, log_file: str | None = None) -> None:
     """
     Main execution flow for orchestration.
 
@@ -274,11 +283,12 @@ def main(tenant_name: str, start_from_step: int = 1, *, metrics_enabled: bool = 
         tenant_name: Name of the tenant to deploy
         start_from_step: Step number to start from (1=validate, 2=provision, 3=credentials, 4=deploy)
         skip_credentials: Skip credential generation step
+        log_file: Path to save the metrics log file.
     """
     utils.log_info(f"✨ Starting deployment process for tenant: {tenant_name} ✨")
     key_path = utils.ensure_tenant_ssh_identity(tenant_name)
     utils.set_default_ssh_identity(key_path)
-    metrics = DeploymentMetrics(tenant_name, metrics_enabled)
+    metrics = DeploymentMetrics(tenant_name, metrics_enabled, log_path=log_file)
     metrics.add_info("start_from_step", start_from_step)
 
     if start_from_step > 1:
@@ -450,6 +460,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Skip credential generation step (use existing or manual credentials)"
     )
+    parser.add_argument(
+        "--log-file",
+        type=str,
+        default=None,
+        help="Save the metrics log to a specific file path. If not set, a timestamped file is created in the tenant's metrics directory."
+    )
     args = parser.parse_args()
 
     # Set global DEBUG flag via context
@@ -467,5 +483,6 @@ if __name__ == "__main__":
         args.tenant,
         start_from_step=args.start_from_step,
         metrics_enabled=metrics_enabled,
-        skip_credentials=args.skip_credentials
+        skip_credentials=args.skip_credentials,
+        log_file=args.log_file
     )
