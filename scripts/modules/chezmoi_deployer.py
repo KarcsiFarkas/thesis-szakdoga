@@ -195,6 +195,21 @@ def deploy_via_ssh(
             recursive=True
         )
 
+        # Upload generated credentials if they exist
+        temp_auth_dir = constants.MS_CONFIG_DIR / "tenants" / tenant_name / "temp-auth"
+        if temp_auth_dir.exists():
+            print("📦 Uploading generated credentials to VM...")
+            utils.scp_upload(
+                host_or_ip,
+                vm_username,
+                str(temp_auth_dir),
+                f"{remote_temp_dir}/credentials",
+                recursive=True
+            )
+            print("✅ Credentials uploaded successfully")
+        else:
+            print("⚠️  No credentials found in temp-auth, deployment will use defaults")
+
         print("✅ Files uploaded successfully")
 
         # Make deployment script executable
