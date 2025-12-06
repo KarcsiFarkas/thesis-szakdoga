@@ -29,7 +29,8 @@ from scripts.modules import (
     nixos_anywhere_deployer,
     traefik_config,
     utils,
-    constants
+    constants,
+    vm_metrics_collector
 )
 
 
@@ -103,6 +104,36 @@ class DeploymentMetrics:
         if not self.enabled:
             return
         self.data["steps"].append({"name": name, "status": reason})
+
+    def collect_vm_metrics(self, host: str, user: str, ssh_key: Path | None = None, runtime: str = "docker") -> None:
+        """
+        Collect detailed metrics from the deployed VM.
+
+        Args:
+            host: VM hostname or IP address
+            user: SSH username
+            ssh_key: Path to SSH private key
+            runtime: Deployment runtime (docker or nix)
+        """
+        if not self.enabled:
+            return
+
+        utils.log_info(f"📊 Collecting metrics from VM {host}...")
+
+        try:
+            vm_metrics = vm_metrics_collector.collect_vm_metrics(
+                host,
+                user,
+                ssh_key=ssh_key,
+                collect_docker=(runtime == "docker")
+            )
+
+            self.data["vm_metrics"] = vm_metrics
+            utils.log_success(f"✓ VM metrics collected from {host}")
+
+        except Exception as e:
+            utils.log_warn(f"Failed to collect VM metrics: {e}")
+            self.data["vm_metrics"] = {"error": str(e)}
 
     def finish(self, *, error: Exception | None = None) -> None:
         if not self.enabled:
@@ -422,6 +453,20 @@ def main(tenant_name: str, start_from_step: int = 1, *, metrics_enabled: bool = 
     finally:
         metrics.disk_snapshot("end-root", constants.ROOT_DIR)
         metrics.disk_snapshot("end-docker", constants.DOCKER_LEGACY_DIR)
+
+        # Collect VM metrics if deployment succeeded and VM is accessible
+        if error is None and start_from_step <= 4:
+            try:
+                host_or_ip, _ = utils.get_vm_connection_info(vm_to_provision)
+                metrics.collect_vm_metrics(
+                    host=host_or_ip,
+                    user=vm_username,
+                    ssh_key=key_path,
+                    runtime=deployment_runtime
+                )
+            except Exception as e:
+                utils.log_warn(f"Could not collect VM metrics: {e}")
+
         metrics.finish(error=error)
 
 
